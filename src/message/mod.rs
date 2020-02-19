@@ -20,7 +20,7 @@ pub trait MessageEncoder {
 
     fn encode_field<'a, T>(&mut self, name: &'static str, value: &'a T) -> Result<(), Self::Error>
     where
-        T: AsBasicTypeRef<'a, Self::Value>;
+        T: AsBasicValueRef<'a, Self::Value>;
 }
 
 pub trait MessageDecoder {
@@ -29,7 +29,7 @@ pub trait MessageDecoder {
 
     fn decode_field<T>(&mut self) -> Result<T, Self::Error>
     where
-        T: TryFrom<BasicType<Self::Value>>;
+        T: TryFrom<BasicValue<Self::Value>>;
 }
 
 pub trait Message<V>: Sized {
@@ -49,6 +49,7 @@ pub trait Message<V>: Sized {
 
 impl_all_standard_messages!(
     (
+        /// `GOODBYE`
         GoodbyeMessage,
         Goodbye,
         [
@@ -57,6 +58,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `HELLO`
         HelloMessage,
         Hello,
         [
@@ -65,6 +67,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `PROVE`
         ProveMessage,
         Prove,
         [
@@ -73,6 +76,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `PROOF`
         ProofMessage,
         Proof,
         [
@@ -81,6 +85,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `ERROR`
         ErrorMessage,
         Error,
         [
@@ -95,6 +100,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `CANCEL`
         CancelMessage,
         Cancel,
         [
@@ -103,6 +109,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `CALL`
         CallMessage,
         Call,
         [
@@ -115,6 +122,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `RESULT`
         ResultMessage,
         Result,
         [
@@ -125,6 +133,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `EVENT`
         EventMessage,
         Event,
         [
@@ -137,6 +146,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `PUBLISH`
         PublishMessage,
         Publish,
         [
@@ -149,6 +159,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `PUBLISHED`
         PublishedMessage,
         Published,
         [
@@ -159,6 +170,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `SUBSCRIBE`
         SubscribeMessage,
         Subscribe,
         [
@@ -169,6 +181,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `SUBSCRIBED`
         SubscribedMessage,
         Subscribed,
         [
@@ -179,6 +192,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `UNSUBSCRIBE`
         UnsubscribeMessage,
         Unsubscribe,
         [
@@ -189,6 +203,7 @@ impl_all_standard_messages!(
         ]
     ),
     (
+        /// `UNSUBSCRIBED`
         UnsubscribedMessage,
         Unsubscribed,
         [

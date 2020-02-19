@@ -2,9 +2,26 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-/// The basic types used by LRPMP
+/// Error produced from a invalid basic type conversion.
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnexpectedBasicTypeError {
+    pub expected: &'static [BasicType],
+    pub actual: BasicType,
+}
+
+/// The basic types used by LRPMP.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BasicType {
+    U8,
+    U64,
+    Str,
+    Map,
+    Val,
+}
+
+/// The basic types along with a respective value used by LRPMP.
 #[derive(Debug, Clone)]
-pub enum BasicType<V> {
+pub enum BasicValue<V> {
     U8(u8),
     U64(u64),
     Str(String),
@@ -12,9 +29,23 @@ pub enum BasicType<V> {
     Val(V),
 }
 
-/// References to the basic types used by LRPMP
+impl<V> BasicValue<V> {
+    /// Returns the basic type of the value.
+    pub fn ty(&self) -> BasicType {
+        match self {
+            Self::U8(_) => BasicType::U8,
+            Self::U64(_) => BasicType::U64,
+            Self::Str(_) => BasicType::Str,
+            Self::Map(_) => BasicType::Map,
+            Self::Val(_) => BasicType::Val,
+        }
+    }
+}
+
+/// The basic types along with a reference to their respective
+/// value used by LRPMP.
 #[derive(Debug, Clone)]
-pub enum BasicTypeRef<'a, V> {
+pub enum BasicValueRef<'a, V> {
     U8(u8),
     U64(u64),
     Str(&'a str),
@@ -22,30 +53,43 @@ pub enum BasicTypeRef<'a, V> {
     Val(&'a V),
 }
 
-/// Helper to convert special types to their basic representation.
-///
-/// Converting to a basic type is always a non fail operation.
-pub trait AsBasicTypeRef<'a, V> {
-    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V>;
-}
-
-impl<'a, T, V> AsBasicTypeRef<'a, V> for &'a T
-where
-    T: AsBasicTypeRef<'a, V>,
-{
-    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
-        (*self).as_basic_type_ref()
+impl<'a, V> BasicValueRef<'a, V> {
+    /// Returns the basic type of the value.
+    pub fn ty(&self) -> BasicType {
+        match self {
+            Self::U8(_) => BasicType::U8,
+            Self::U64(_) => BasicType::U64,
+            Self::Str(_) => BasicType::Str,
+            Self::Map(_) => BasicType::Map,
+            Self::Val(_) => BasicType::Val,
+        }
     }
 }
 
-impl<'a, V> AsBasicTypeRef<'a, V> for BasicType<V> {
-    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
+/// Helper to convert special types to their basic representation.
+///
+/// Converting to a basic type is always a non fail operation.
+pub trait AsBasicValueRef<'a, V> {
+    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V>;
+}
+
+impl<'a, T, V> AsBasicValueRef<'a, V> for &'a T
+where
+    T: AsBasicValueRef<'a, V>,
+{
+    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
+        (*self).as_basic_value_ref()
+    }
+}
+
+impl<'a, V> AsBasicValueRef<'a, V> for BasicValue<V> {
+    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
         match self {
-            Self::U8(v) => BasicTypeRef::U8(*v),
-            Self::U64(v) => BasicTypeRef::U64(*v),
-            Self::Str(s) => BasicTypeRef::Str(s.as_ref()),
-            Self::Map(m) => BasicTypeRef::Map(&m),
-            Self::Val(v) => BasicTypeRef::Val(&v),
+            Self::U8(v) => BasicValueRef::U8(*v),
+            Self::U64(v) => BasicValueRef::U64(*v),
+            Self::Str(s) => BasicValueRef::Str(s.as_ref()),
+            Self::Map(m) => BasicValueRef::Map(&m),
+            Self::Val(v) => BasicValueRef::Val(&v),
         }
     }
 }
@@ -54,8 +98,8 @@ impl<'a, V> AsBasicTypeRef<'a, V> for BasicType<V> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Map<V>(HashMap<String, V>);
 
-impl<'a, V> AsBasicTypeRef<'a, V> for Map<V> {
-    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
-        BasicTypeRef::Map(&self)
+impl<'a, V> AsBasicValueRef<'a, V> for Map<V> {
+    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
+        BasicValueRef::Map(&self)
     }
 }
