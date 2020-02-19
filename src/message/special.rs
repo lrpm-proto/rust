@@ -22,9 +22,9 @@ impl<'a, V> AsBasicTypeRef<'a, V> for Id {
 
 /// Represents a resource unique across all sessions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Uri<'a>(Cow<'a, str>);
+pub struct Uri(Cow<'static, str>);
 
-impl<'a, V> AsBasicTypeRef<'a, V> for Uri<'a> {
+impl<'a, V> AsBasicTypeRef<'a, V> for Uri {
     fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
         BasicTypeRef::Str(self.0.as_ref().into())
     }

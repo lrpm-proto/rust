@@ -38,6 +38,18 @@ where
     }
 }
 
+impl<'a, V> AsBasicTypeRef<'a, V> for BasicType<V> {
+    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
+        match self {
+            Self::U8(v) => BasicTypeRef::U8(*v),
+            Self::U64(v) => BasicTypeRef::U64(*v),
+            Self::Str(s) => BasicTypeRef::Str(s.as_ref()),
+            Self::Map(m) => BasicTypeRef::Map(&m),
+            Self::Val(v) => BasicTypeRef::Val(&v),
+        }
+    }
+}
+
 /// A `Str` key to `Val` structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Map<V>(HashMap<String, V>);
