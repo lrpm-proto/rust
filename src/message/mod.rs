@@ -16,7 +16,7 @@ pub trait MessageEncoder {
 }
 
 pub trait Message<V> {
-    fn kind_str(&self) -> &'static str;
+    fn kind(&self) -> KnownKind;
 
     fn encode<E>(&self, encoder: E) -> Result<(), E::Error>
     where
@@ -27,18 +27,39 @@ macro_rules! impl_standard_message {
     (
         $name:ident,
         $kind:ident,
-        [ $($field:ident: $field_ty:ty),* ]
+        [ $(
+            $(#[$field_attr:meta])*
+            $field:ident: $field_ty:ty
+        ),* ]
     ) => {
         #[derive(Debug, Clone)]
         pub struct $name<'a, V> {
-            $(pub $field: $field_ty),*,
+            $(
+                $(#[$field_attr])*
+                pub $field: $field_ty
+            ),*,
+            #[doc="Optional meta information on this message."]
             pub meta: Meta<V>,
             _marker: PhantomData::<&'a ()>,
         }
 
+        impl<'a, V> $name<'a, V> {
+            pub fn new(
+                $($field: $field_ty),*,
+                meta: Meta<V>,
+            ) -> Self {
+                Self {
+                    $($field),*,
+                    meta,
+                    _marker: PhantomData,
+                }
+            }
+        }
+
         impl<'a, V> Message<V> for $name<'a, V> {
-            fn kind_str(&self) -> &'static str {
-                StandardKind::$kind.to_str()
+            /// Returns the message kind.
+            fn kind(&self) -> KnownKind {
+                KnownKind::Standard(StandardKind::$kind)
             }
 
             fn encode<E>(&self, mut encoder: E) -> Result<(), E::Error>
@@ -76,65 +97,165 @@ pub enum StandardMessage<'a, V> {
     Unsubscribed(UnsubscribedMessage<'a, V>),
 }
 
-impl_standard_message!(GoodbyeMessage, Goodbye, [reason: Uri]);
+impl_standard_message!(
+    GoodbyeMessage,
+    Goodbye,
+    [
+        /// A URI uniquely describing the close reason.
+        reason: Uri<'a>
+    ]
+);
 
-impl_standard_message!(HelloMessage, Hello, [body: Body<V>]);
+impl_standard_message!(
+    HelloMessage,
+    Hello,
+    [
+        /// The body of the message.
+        body: Body<V>
+    ]
+);
 
-impl_standard_message!(ProveMessage, Prove, [body: Body<V>]);
+impl_standard_message!(
+    ProveMessage,
+    Prove,
+    [
+        /// The body of the message.
+        body: Body<V>
+    ]
+);
 
-impl_standard_message!(ProofMessage, Proof, [body: Body<V>]);
+impl_standard_message!(
+    ProofMessage,
+    Proof,
+    [
+        /// The body of the message.
+        body: Body<V>
+    ]
+);
 
 impl_standard_message!(
     ErrorMessage,
     Error,
     [
+        /// The request kind that triggered the error.
         request_kind: Kind,
+        /// The request ID that triggered the error.
         request_id: Id,
-        error: UriRef<'a>,
+        /// A URI uniquely describing the error.
+        error: Uri<'a>,
+        /// Body of the error message.
         body: Body<V>
     ]
 );
 
-impl_standard_message!(CancelMessage, Cancel, [request_id: Id]);
+impl_standard_message!(
+    CancelMessage,
+    Cancel,
+    [
+        /// The ID of the request we want to cancel.
+        request_id: Id
+    ]
+);
 
 impl_standard_message!(
     CallMessage,
     Call,
-    [request_id: Id, procedure: UriRef<'a>, body: Body<V>]
+    [
+        /// An ID uniquely describing the call request.
+        request_id: Id,
+        /// A URI uniquely describing the procedure.
+        procedure: Uri<'a>,
+        /// The body of the message.
+        body: Body<V>
+    ]
 );
 
-impl_standard_message!(ResultMessage, Result, [request_id: Id, body: Body<V>]);
+impl_standard_message!(
+    ResultMessage,
+    Result,
+    [
+        /// The ID of the call we are responding to.
+        request_id: Id,
+        /// The successful body result from the call.
+        body: Body<V>
+    ]
+);
 
 impl_standard_message!(
     EventMessage,
     Event,
-    [publication_id: Id, subscription_id: Id, body: Body<V>]
+    [
+        /// The publication ID.
+        publication_id: Id,
+        /// The subscription ID.
+        subscription_id: Id,
+        /// The body of the event.
+        body: Body<V>
+    ]
 );
 
 impl_standard_message!(
     PublishMessage,
     Publish,
-    [request_id: Id, topic: UriRef<'a>, body: Body<V>]
+    [
+        /// An ID uniquely describing the publication request.
+        request_id: Id,
+        ///  A URI describing the topic we are publishing to.
+        topic: Uri<'a>,
+        /// The body of the event being published.
+        body: Body<V>
+    ]
 );
 
 impl_standard_message!(
     PublishedMessage,
     Published,
-    [request_id: Id, publication_id: Id]
+    [
+        /// The ID of the publication request.
+        request_id: Id,
+        /// An ID uniquely describing the publication.
+        publication_id: Id
+    ]
 );
 
-impl_standard_message!(SubscribeMessage, Subscribe, [request_id: Id, topic: Uri]);
+impl_standard_message!(
+    SubscribeMessage,
+    Subscribe,
+    [
+        /// An ID uniquely describing the subscription request.
+        request_id: Id,
+        /// A URI describing the topic we are subscribing to.
+        topic: Uri<'a>
+    ]
+);
 
 impl_standard_message!(
     SubscribedMessage,
     Subscribed,
-    [request_id: Id, subscription_id: Id]
+    [
+        /// The ID of the subscription request.
+        request_id: Id,
+        /// An ID uniquely describing the subscription.
+        subscription_id: Id
+    ]
 );
 
 impl_standard_message!(
     UnsubscribeMessage,
     Unsubscribe,
-    [request_id: Id, subscription_id: Id]
+    [
+        /// An ID uniquely describing the unsubscribe request.
+        request_id: Id,
+        /// The subscription ID we are unsubscribing from.
+        subscription_id: Id
+    ]
 );
 
-impl_standard_message!(UnsubscribedMessage, Unsubscribed, [request_id: Id]);
+impl_standard_message!(
+    UnsubscribedMessage,
+    Unsubscribed,
+    [
+        /// The ID of the unsubscribe request.
+        request_id: Id
+    ]
+);

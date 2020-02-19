@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use super::basic::*;
 
+///////////////////////////////////////////////////////////////////////////////
+// Id
+
 /// Represents a single request unique within a session.
 #[derive(Debug, Clone)]
 pub struct Id(u64);
@@ -14,41 +17,111 @@ impl<'a, V> AsBasicTypeRef<'a, V> for Id {
     }
 }
 
-/// Represents a resource unique across all sessions.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Uri(String);
-
-impl<'a, V> AsBasicTypeRef<'a, V> for Uri {
-    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
-        BasicTypeRef::Str(self.0.as_str().into())
-    }
-}
+///////////////////////////////////////////////////////////////////////////////
+// Uri
 
 /// Represents a resource unique across all sessions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UriRef<'a>(Cow<'a, str>);
+pub struct Uri<'a>(Cow<'a, str>);
 
-impl<'a, V> AsBasicTypeRef<'a, V> for UriRef<'a> {
+impl<'a, V> AsBasicTypeRef<'a, V> for Uri<'a> {
     fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
         BasicTypeRef::Str(self.0.as_ref().into())
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Meta
+
+/// An arbitrary map of additional information.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Meta<V>(Map<V>);
+
+impl<'a, V> AsBasicTypeRef<'a, V> for Meta<V> {
+    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
+        BasicTypeRef::Map(&self.0)
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Body
+
+/// Application specific value.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Body<V>(V);
+
+impl<'a, V> AsBasicTypeRef<'a, V> for Body<V> {
+    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
+        BasicTypeRef::Val(&self.0)
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Kind
+
 /// Represents a message kind (eg, `CALL`, `20`).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Kind {
-    Std(StandardKind),
-    Str(Cow<'static, str>),
-    Other(u8),
+    Known(KnownKind),
+    Unknown(UnknownKind),
 }
 
 impl<'a, V> AsBasicTypeRef<'a, V> for Kind {
     fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
         match self {
-            Self::Std(s) => s.as_basic_type_ref(),
-            Self::Str(s) => BasicTypeRef::Str(s.as_ref().into()),
-            Self::Other(o) => BasicTypeRef::U8(*o),
+            Self::Known(k) => k.as_basic_type_ref(),
+            Self::Unknown(k) => k.as_basic_type_ref(),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum UnknownKind {
+    Str(Cow<'static, str>),
+    Code(u8),
+}
+
+impl<'a, V> AsBasicTypeRef<'a, V> for UnknownKind {
+    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
+        match self {
+            Self::Str(s) => BasicTypeRef::Str(s.as_ref()),
+            Self::Code(c) => BasicTypeRef::U8(*c),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum KnownKind {
+    Standard(StandardKind),
+    Custom(CustomKind),
+}
+
+impl<'a, V> AsBasicTypeRef<'a, V> for KnownKind {
+    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
+        match self {
+            Self::Standard(k) => k.as_basic_type_ref(),
+            Self::Custom(k) => BasicTypeRef::U8(k.code),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CustomKind {
+    name: &'static str,
+    code: u8,
+}
+
+impl CustomKind {
+    pub const fn new(name: &'static str, code: u8) -> Self {
+        Self { name, code }
+    }
+
+    pub fn code(&self) -> u8 {
+        self.code
+    }
+
+    pub fn name(&self) -> &'static str {
+        self.name
     }
 }
 
@@ -112,25 +185,5 @@ impl From<StandardKind> for u8 {
 impl<'a, V> AsBasicTypeRef<'a, V> for StandardKind {
     fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
         BasicTypeRef::U8(self.to_u8())
-    }
-}
-
-/// An arbitrary map of additional information.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Meta<V>(Map<V>);
-
-impl<'a, V> AsBasicTypeRef<'a, V> for Meta<V> {
-    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
-        BasicTypeRef::Map(&self.0)
-    }
-}
-
-/// Application specific value.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Body<V>(V);
-
-impl<'a, V> AsBasicTypeRef<'a, V> for Body<V> {
-    fn as_basic_type_ref(&'a self) -> BasicTypeRef<'a, V> {
-        BasicTypeRef::Val(&self.0)
     }
 }
