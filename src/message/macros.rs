@@ -1,3 +1,48 @@
+macro_rules! impl_standard_kind {
+    (
+        $(
+            (
+                $(#[$attr:meta])*
+                $name:ident,
+                $name_str:expr,
+                $code:expr
+            )
+        ),*
+    ) => {
+        /// Standard defined message kinds.
+        #[derive(Debug, Clone, Copy, PartialEq)]
+        #[repr(u8)]
+        pub enum StandardKind {
+            $(
+                $(#[$attr:meta])*
+                $name = $code
+            ),*
+        }
+
+        impl StandardKind {
+            pub fn from_name(name: &str) -> Option<Self> {
+                match name {
+                    $($name_str => Some(Self::$name)),*,
+                    _ => None,
+                }
+            }
+
+            pub fn from_code(code: u8) -> Option<Self> {
+                match code {
+                    $($code => Some(Self::$name)),*,
+                    _ => None,
+                }
+            }
+
+            pub fn to_str(self) -> &'static str {
+                match self {
+                    $(Self::$name => $name_str),*
+                }
+            }
+        }
+    };
+}
+
 macro_rules! impl_all_standard_messages {
     (
         $(

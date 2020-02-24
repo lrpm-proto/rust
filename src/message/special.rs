@@ -204,6 +204,20 @@ impl<'a, V> AsBasicValueRef<'a, V> for Meta<V> {
     }
 }
 
+impl<V> TryFrom<BasicValue<V>> for Map<V> {
+    type Error = UnexpectedBasicTypeError;
+
+    fn try_from(value: BasicValue<V>) -> Result<Self, Self::Error> {
+        match value {
+            BasicValue::Map(v) => Ok(v),
+            other => Err(UnexpectedBasicTypeError {
+                expected: &[BasicType::Map],
+                actual: other.ty(),
+            }),
+        }
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Body
 
@@ -217,6 +231,20 @@ impl<'a, V> AsBasicValueRef<'a, V> for Body<V> {
     }
 }
 
+impl<V> TryFrom<BasicValue<V>> for Body<V> {
+    type Error = UnexpectedBasicTypeError;
+
+    fn try_from(value: BasicValue<V>) -> Result<Self, Self::Error> {
+        match value {
+            BasicValue::Val(v) => Ok(Self(v)),
+            other => Err(UnexpectedBasicTypeError {
+                expected: &[BasicType::Val],
+                actual: other.ty(),
+            }),
+        }
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Kind
 
@@ -225,6 +253,22 @@ impl<'a, V> AsBasicValueRef<'a, V> for Body<V> {
 pub enum Kind {
     Known(KnownKind),
     Unknown(UnknownKind),
+}
+
+impl Kind {
+    pub fn from_code(code: u8) -> Self {
+        if let Some(known) = KnownKind::from_code(code) {
+            return Self::Known(known);
+        }
+        Self::Unknown(UnknownKind::Code(code))
+    }
+
+    pub fn from_name(name: String) -> Self {
+        if let Some(known) = KnownKind::from_name(name.as_str()) {
+            return Self::Known(known);
+        }
+        Self::Unknown(UnknownKind::Name(name.into()))
+    }
 }
 
 impl<'a, V> AsBasicValueRef<'a, V> for Kind {
@@ -236,17 +280,32 @@ impl<'a, V> AsBasicValueRef<'a, V> for Kind {
     }
 }
 
+impl<V> TryFrom<BasicValue<V>> for Kind {
+    type Error = UnexpectedBasicTypeError;
+
+    fn try_from(value: BasicValue<V>) -> Result<Self, Self::Error> {
+        match value {
+            BasicValue::U8(v) => Ok(Self::from_code(v)),
+            BasicValue::Str(v) => Ok(Self::from_name(v)),
+            other => Err(UnexpectedBasicTypeError {
+                expected: &[BasicType::U8, BasicType::Str],
+                actual: other.ty(),
+            }),
+        }
+    }
+}
+
 /// Represents an unknown message kind.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnknownKind {
-    Str(Cow<'static, str>),
+    Name(Cow<'static, str>),
     Code(u8),
 }
 
 impl<'a, V> AsBasicValueRef<'a, V> for UnknownKind {
     fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
         match self {
-            Self::Str(s) => BasicValueRef::Str(s.as_ref()),
+            Self::Name(s) => BasicValueRef::Str(s.as_ref()),
             Self::Code(c) => BasicValueRef::U8(*c),
         }
     }
@@ -257,6 +316,16 @@ impl<'a, V> AsBasicValueRef<'a, V> for UnknownKind {
 pub enum KnownKind {
     Standard(StandardKind),
     Custom(CustomKind),
+}
+
+impl KnownKind {
+    pub fn from_name(name: &str) -> Option<Self> {
+        StandardKind::from_name(name).map(Self::Standard)
+    }
+
+    pub fn from_code(code: u8) -> Option<Self> {
+        StandardKind::from_code(code).map(Self::Standard)
+    }
 }
 
 impl<'a, V> AsBasicValueRef<'a, V> for KnownKind {
@@ -292,52 +361,29 @@ impl CustomKind {
     }
 }
 
-/// Standard defined message kinds.
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[repr(u8)]
-pub enum StandardKind {
+impl_standard_kind!(
     // Init
-    Goodbye = 1,
-    Hello = 2,
-    Prove = 3,
-    Proof = 4,
+    (Goodbye, "GOODBYE", 1),
+    (Hello, "HELLO", 2),
+    (Prove, "PROVE", 3),
+    (Proof, "PROOF", 4),
     // Generic
-    Error = 20,
-    Cancel = 21,
+    (Error, "ERROR", 20),
+    (Cancel, "CANCEL", 21),
     // RPC
-    Call = 40,
-    Result = 41,
+    (Call, "CALL", 40),
+    (Result, "RESULT", 41),
     // PubSub
-    Event = 60,
-    Publish = 61,
-    Published = 62,
-    Subscribe = 63,
-    Subscribed = 64,
-    Unsubscribe = 65,
-    Unsubscribed = 66,
-}
+    (Event, "EVENT", 60),
+    (Publish, "PUBLISH", 61),
+    (Published, "PUBLISHED", 62),
+    (Subscribe, "SUBSCRIBE", 63),
+    (Subscribed, "SUBSCRIBED", 64),
+    (Unsubscribe, "UNSUBSCRIBE", 65),
+    (Unsubscribed, "UNSUBSCRIBED", 66)
+);
 
 impl StandardKind {
-    pub fn to_str(self) -> &'static str {
-        match self {
-            Self::Goodbye => "GOODBYE",
-            Self::Hello => "HELLO",
-            Self::Prove => "PROVE",
-            Self::Proof => "PROOF",
-            Self::Error => "ERROR",
-            Self::Cancel => "CANCEL",
-            Self::Call => "CALL",
-            Self::Result => "RESULT",
-            Self::Event => "EVENT",
-            Self::Publish => "PUBLISH",
-            Self::Published => "PUBLISHED",
-            Self::Subscribe => "SUBSCRIBE",
-            Self::Subscribed => "SUBSCRIBED",
-            Self::Unsubscribe => "UNSUBSCRIBE",
-            Self::Unsubscribed => "UNSUBSCRIBED",
-        }
-    }
-
     pub fn to_u8(self) -> u8 {
         self.into()
     }
