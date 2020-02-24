@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 use std::convert::TryFrom;
+use std::fmt;
 
+use bytes::Bytes;
 use bytestring::ByteString;
 use serde::{Deserialize, Serialize};
 
@@ -48,35 +50,71 @@ impl From<Id> for u64 {
 ///////////////////////////////////////////////////////////////////////////////
 // Uri
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ParseUriError {
     pub invalid: char,
     pub offset: usize,
 }
 
+impl ParseUriError {
+    fn new(c: u8, offset: usize) -> Self {
+        let invalid = c as char;
+        Self { invalid, offset }
+    }
+}
+
 /// Represents a resource unique across all sessions.
 // TODO: Serialize, Deserialize
 #[derive(Debug, Clone)]
-pub struct Uri(ByteString);
+pub struct Uri {
+    contents: ByteString,
+    segment_count: u8,
+    wildcard_count: u8,
+}
 
 impl Uri {
+    const SEGMENT: u8 = b'.';
+    const WILDCARD: u8 = b'*';
+
     pub fn as_str(&self) -> &str {
-        self.0.as_ref()
+        self.contents.as_ref()
     }
 
-    pub fn to_string(&self) -> String {
-        self.as_str().to_owned()
+    pub fn has_wildcard(&self) -> bool {
+        self.wildcard_count > 0
+    }
+
+    pub fn segment_count(&self) -> u8 {
+        self.segment_count
+    }
+
+    pub fn wildcard_count(&self) -> u8 {
+        self.wildcard_count
     }
 
     pub fn from_static(s: &'static str) -> Result<Self, ParseUriError> {
-        Self::check_str(s)?;
-        Ok(Self(ByteString::from_static(s)))
+        Self::from_bytes(Bytes::from_static(s.as_ref()))
     }
 
-    fn check_str(s: &str) -> Result<(), ParseUriError> {
-        for (i, c) in s.bytes().enumerate() {
+    fn from_bytes(contents: Bytes) -> Result<Self, ParseUriError> {
+        let mut prev_char = 0;
+        let mut segment_count = 0;
+        let mut wildcard_count = 0;
+        for (i, c) in contents.as_ref().iter().copied().enumerate() {
             match c {
-                b'_' | b'.' | b'$' | b'a'..=b'z' | b'0'..=b'9' => continue,
+                Self::WILDCARD => {
+                    if prev_char == Self::WILDCARD || wildcard_count == u8::max_value() {
+                        return Err(ParseUriError::new(c, i));
+                    }
+                    wildcard_count += 1;
+                }
+                Self::SEGMENT if prev_char == Self::SEGMENT => {
+                    if prev_char == Self::SEGMENT || segment_count == u8::max_value() {
+                        return Err(ParseUriError::new(c, i));
+                    }
+                    segment_count += 1;
+                }
+                b'_' | b'a'..=b'z' | b'0'..=b'9' => (),
                 _ => {
                     return Err(ParseUriError {
                         invalid: c as char,
@@ -84,8 +122,28 @@ impl Uri {
                     })
                 }
             }
+            prev_char = c;
         }
-        Ok(())
+        let contents = unsafe { ByteString::from_bytes_unchecked(contents) };
+        Ok(Self {
+            contents,
+            segment_count,
+            wildcard_count,
+        })
+    }
+}
+
+impl fmt::Display for Uri {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl TryFrom<Bytes> for Uri {
+    type Error = ParseUriError;
+
+    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+        Self::from_bytes(value)
     }
 }
 
@@ -93,8 +151,7 @@ impl TryFrom<String> for Uri {
     type Error = ParseUriError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::check_str(value.as_ref())?;
-        Ok(Self(ByteString::from(value)))
+        Self::from_bytes(Bytes::from(value))
     }
 }
 
@@ -102,8 +159,7 @@ impl TryFrom<ByteString> for Uri {
     type Error = ParseUriError;
 
     fn try_from(value: ByteString) -> Result<Self, Self::Error> {
-        Self::check_str(value.as_ref())?;
-        Ok(Self(value))
+        Self::from_bytes(value.into_inner())
     }
 }
 
@@ -113,19 +169,27 @@ impl<'a, V> AsBasicValueRef<'a, V> for Uri {
     }
 }
 
-// impl<V> TryFrom<BasicValue<V>> for Uri {
-//     type Error = UnexpectedBasicTypeError;
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParseBasicUriError {
+    Parse(ParseUriError),
+    UnexpectedBasicType(UnexpectedBasicTypeError),
+}
 
-//     fn try_from(value: BasicValue<V>) -> Result<Self, Self::Error> {
-//         match value {
-//             BasicValue::Str(v) => Ok(Self::new_static(v)),
-//             other => Err(UnexpectedBasicTypeError {
-//                 expected: &[BasicType::U64],
-//                 actual: other.ty(),
-//             }),
-//         }
-//     }
-// }
+impl<V> TryFrom<BasicValue<V>> for Uri {
+    type Error = ParseBasicUriError;
+
+    fn try_from(value: BasicValue<V>) -> Result<Self, Self::Error> {
+        match value {
+            BasicValue::Str(v) => Self::try_from(v).map_err(ParseBasicUriError::Parse),
+            other => Err(ParseBasicUriError::UnexpectedBasicType(
+                UnexpectedBasicTypeError {
+                    expected: &[BasicType::U64],
+                    actual: other.ty(),
+                },
+            )),
+        }
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Meta
@@ -254,7 +318,7 @@ pub enum StandardKind {
 }
 
 impl StandardKind {
-    pub fn to_str(&self) -> &'static str {
+    pub fn to_str(self) -> &'static str {
         match self {
             Self::Goodbye => "GOODBYE",
             Self::Hello => "HELLO",
