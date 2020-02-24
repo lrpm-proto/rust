@@ -173,8 +173,7 @@ macro_rules! impl_standard_message {
             {
                 // TODO: better eq
                 if kind != Kind::Known(KnownKind::Standard(StandardKind::$kind)) {
-                    // TODO: error!
-                    unimplemented!()
+                    return Err(MessageDecodeError::UnexpectedKind(kind).into());
                 }
                 Ok(Self {
                     $($field: decoder.decode_field::<$field_ty>(stringify!($field))?),*,
