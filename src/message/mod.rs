@@ -1,6 +1,6 @@
 #[macro_use]
 mod macros;
-mod encdec;
+mod codec;
 
 pub mod basic;
 pub mod special;
@@ -8,21 +8,29 @@ pub mod special;
 use self::basic::*;
 use self::special::*;
 
-pub use self::encdec::*;
+pub use self::codec::*;
 
 pub trait Message<V>: Sized {
     /// Returns the message kind.
     fn kind(&self) -> KnownKind;
 
     /// Encodes the message given an encoder.
-    fn encode<E>(&self, encoder: E) -> Result<(), E::Error>
+    fn encode<C, E>(&self, encoder: E) -> Result<(), C::Error>
     where
-        E: MessageEncoder<Value = V>;
+        C: MessageCodec<Value = V>,
+        E: MessageEncoder<C>;
 
     /// Decodes the message given basic values and a kind.
-    fn decode<D>(kind: Kind, decoder: D) -> Result<Self, D::Error>
+    fn decode<'de, C, D>(kind: Kind, decoder: D) -> Result<Self, MessageDecodeError<C::Error>>
     where
-        D: MessageDecoder<Value = V>;
+        C: MessageCodec<Value = V>,
+        D: MessageDecoder<'de, C>;
+
+    /// Returns the lower and upper bound of the number of fields in the message.
+    fn field_count(&self) -> (usize, Option<usize>);
+
+    /// Convert the message into a standard message if applicable.
+    fn into_standard(self) -> Option<StandardMessage<V>>;
 }
 
 impl_all_standard_messages!(

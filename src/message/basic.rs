@@ -94,9 +94,42 @@ impl<'a, V> AsBasicValueRef<'a, V> for BasicValue<V> {
     }
 }
 
+pub trait FromBasicValue<V>: Sized {
+    type Error;
+
+    fn expected_types() -> &'static [BasicType];
+
+    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error>;
+
+    fn unexpected_error(unexpected: BasicValue<V>) -> Self::Error
+    where
+        Self::Error: From<UnexpectedBasicTypeError>,
+    {
+        UnexpectedBasicTypeError {
+            expected: Self::expected_types(),
+            actual: unexpected.ty(),
+        }
+        .into()
+    }
+}
+
 /// A `Str` key to `Val` structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Map<V>(HashMap<String, V>);
+
+impl<V> Map<V> {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &V)> {
+        self.0.iter().map(|(k, v)| (k.as_str(), v))
+    }
+}
 
 impl<'a, V> AsBasicValueRef<'a, V> for Map<V> {
     fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {

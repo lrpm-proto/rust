@@ -34,7 +34,7 @@ macro_rules! impl_standard_kind {
                 }
             }
 
-            pub fn to_str(self) -> &'static str {
+            pub fn name(self) -> &'static str {
                 match self {
                     $(Self::$name => $name_str),*
                 }
@@ -72,16 +72,16 @@ macro_rules! impl_all_standard_messages {
 
             fn encode<E>(&self, encoder: E) -> Result<(), E::Error>
             where
-                E: MessageEncoder<Value = V>
+                E: MessageEncoder<V>
             {
                 match self {
                     $(Self::$kind(m) => m.encode(encoder)),*
                 }
             }
 
-            fn decode<D>(kind: Kind, decoder: D) -> Result<Self, D::Error>
+            fn decode<'de, D>(kind: Kind, decoder: D) -> Result<Self, D::Error>
             where
-                D: MessageDecoder<Value = V>
+                D: MessageDecoder<'de, V>
             {
                 let std_kind = match kind {
                     k @ Kind::Unknown(_) | k @ Kind::Known(KnownKind::Custom(_)) => {
@@ -97,6 +97,16 @@ macro_rules! impl_all_standard_messages {
                 };
 
                 Ok(message)
+            }
+
+            fn into_standard(self) -> Option<Self> {
+                Some(self)
+            }
+
+            fn field_count(&self) -> (usize, Option<usize>) {
+                match self {
+                    $(Self::$kind(m) => m.field_count()),*
+                }
             }
         }
 
@@ -154,10 +164,11 @@ macro_rules! impl_standard_message {
                 KnownKind::Standard(StandardKind::$kind)
             }
 
-            fn encode<E>(&self, mut encoder: E) -> Result<(), E::Error>
+            fn encode<E>(&self, encoder: E) -> Result<(), E::Error>
             where
-                E: MessageEncoder<Value = V>,
+                E: MessageEncoder<V>,
             {
+                let mut encoder = encoder.for_message(self)?;
                 $(
                     encoder.encode_field(
                         stringify!($field),
@@ -167,10 +178,11 @@ macro_rules! impl_standard_message {
                 Ok(())
             }
 
-            fn decode<D>(kind: Kind, mut decoder: D) -> Result<Self, D::Error>
+            fn decode<'de, D>(kind: Kind, decoder: D) -> Result<Self, D::Error>
             where
-                D: MessageDecoder<Value = V>
+                D: MessageDecoder<'de, V>
             {
+                let mut decoder = decoder.for_message(&kind)?;
                 // TODO: better eq
                 if kind != Kind::Known(KnownKind::Standard(StandardKind::$kind)) {
                     return Err(MessageDecodeError::UnexpectedKind(kind).into());
@@ -179,6 +191,15 @@ macro_rules! impl_standard_message {
                     $($field: decoder.decode_field::<$field_ty>(stringify!($field))?),*,
                     meta: decoder.decode_field::<Meta<V>>("meta")?
                 })
+            }
+
+            fn into_standard(self) -> Option<StandardMessage<V>> {
+                Some(StandardMessage::$kind(self))
+            }
+
+            fn field_count(&self) -> (usize, Option<usize>) {
+                // TODO: impl
+                (0, None)
             }
         }
     };
