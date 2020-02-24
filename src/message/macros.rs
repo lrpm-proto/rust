@@ -169,11 +169,20 @@ macro_rules! impl_standard_message {
                 Ok(())
             }
 
-            fn decode<D>(_kind: Kind, _decoder: D) -> Result<Self, D::Error>
+            fn decode<D>(kind: Kind, mut decoder: D) -> Result<Self, D::Error>
             where
                 D: MessageDecoder<Value = V>
             {
-                unimplemented!()
+                // TODO: better eq
+                if kind != Kind::Known(KnownKind::Standard(StandardKind::$kind)) {
+                    // TODO: error!
+                    unimplemented!()
+                }
+                Ok(Self {
+                    $($field: decoder.decode_field::<$field_ty>()?),*,
+                    meta: decoder.decode_field::<Meta<V>>()?,
+                    _marker: PhantomData,
+                })
             }
         }
     };

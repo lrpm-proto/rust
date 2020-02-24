@@ -204,12 +204,12 @@ impl<'a, V> AsBasicValueRef<'a, V> for Meta<V> {
     }
 }
 
-impl<V> TryFrom<BasicValue<V>> for Map<V> {
+impl<V> TryFrom<BasicValue<V>> for Meta<V> {
     type Error = UnexpectedBasicTypeError;
 
     fn try_from(value: BasicValue<V>) -> Result<Self, Self::Error> {
         match value {
-            BasicValue::Map(v) => Ok(v),
+            BasicValue::Map(v) => Ok(Self(v)),
             other => Err(UnexpectedBasicTypeError {
                 expected: &[BasicType::Map],
                 actual: other.ty(),
