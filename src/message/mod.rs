@@ -5,7 +5,6 @@ pub mod basic;
 pub mod special;
 
 use std::convert::TryFrom;
-use std::marker::PhantomData;
 
 use self::basic::*;
 use self::special::*;

@@ -59,11 +59,11 @@ macro_rules! impl_all_standard_messages {
     ) => {
         /// Enum of all standard messages.
         #[derive(Debug, Clone)]
-        pub enum StandardMessage<'a, V> {
-            $($kind($name<'a, V>)),*
+        pub enum StandardMessage<V> {
+            $($kind($name<V>)),*
         }
 
-        impl<'a, V> Message<V> for StandardMessage<'a, V> {
+        impl<V> Message<V> for StandardMessage<V> {
             fn kind(&self) -> KnownKind {
                 match self {
                     $(Self::$kind(m) => m.kind()),*
@@ -128,17 +128,16 @@ macro_rules! impl_standard_message {
     ) => {
         #[derive(Debug, Clone)]
         $(#[$struct_attr])*
-        pub struct $name<'a, V> {
+        pub struct $name<V> {
             $(
                 $(#[$field_attr])*
                 pub $field: $field_ty
             ),*,
             #[doc="Optional meta information on this message."]
             pub meta: Meta<V>,
-            _marker: PhantomData::<&'a ()>,
         }
 
-        impl<'a, V> $name<'a, V> {
+        impl<V> $name<V> {
             pub fn new(
                 $($field: $field_ty),*,
                 meta: Meta<V>,
@@ -146,12 +145,11 @@ macro_rules! impl_standard_message {
                 Self {
                     $($field),*,
                     meta,
-                    _marker: PhantomData,
                 }
             }
         }
 
-        impl<'a, V> Message<V> for $name<'a, V> {
+        impl<V> Message<V> for $name<V> {
             fn kind(&self) -> KnownKind {
                 KnownKind::Standard(StandardKind::$kind)
             }
@@ -180,8 +178,7 @@ macro_rules! impl_standard_message {
                 }
                 Ok(Self {
                     $($field: decoder.decode_field::<$field_ty>(stringify!($field))?),*,
-                    meta: decoder.decode_field::<Meta<V>>("meta")?,
-                    _marker: PhantomData,
+                    meta: decoder.decode_field::<Meta<V>>("meta")?
                 })
             }
         }
