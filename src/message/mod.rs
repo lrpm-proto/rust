@@ -27,7 +27,7 @@ pub trait MessageDecoder {
     type Value;
     type Error: From<MessageDecodeError>;
 
-    fn decode_field<T>(&mut self) -> Result<T, Self::Error>
+    fn decode_field<T>(&mut self, name: &'static str) -> Result<T, Self::Error>
     where
         T: TryFrom<BasicValue<Self::Value>>;
 }

@@ -179,8 +179,8 @@ macro_rules! impl_standard_message {
                     unimplemented!()
                 }
                 Ok(Self {
-                    $($field: decoder.decode_field::<$field_ty>()?),*,
-                    meta: decoder.decode_field::<Meta<V>>()?,
+                    $($field: decoder.decode_field::<$field_ty>(stringify!($field))?),*,
+                    meta: decoder.decode_field::<Meta<V>>("meta")?,
                     _marker: PhantomData,
                 })
             }
