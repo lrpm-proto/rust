@@ -1,6 +1,6 @@
 #[macro_use]
 mod macros;
-mod codec;
+mod encdec;
 mod error;
 mod io;
 
@@ -10,7 +10,7 @@ pub mod special;
 use self::basic::*;
 use self::special::*;
 
-pub use self::codec::*;
+pub use self::encdec::*;
 pub use self::error::*;
 pub use self::io::*;
 
@@ -18,8 +18,16 @@ pub trait Message<V>: Sized {
     /// Returns the message kind.
     fn kind(&self) -> KnownKind;
 
-    /// Encodes the message given an encoder.
+    /// Consumes and encodes the message given an encoder.
     fn encode<E>(self, encoder: E) -> Result<(), MessageError<E::Error>>
+    where
+        E: MessageEncoder<V>,
+    {
+        self.encode_ref(encoder)
+    }
+
+    /// Encodes the message given an encoder.
+    fn encode_ref<E>(&self, encoder: E) -> Result<(), MessageError<E::Error>>
     where
         E: MessageEncoder<V>;
 
@@ -59,6 +67,17 @@ impl<V> Message<V> for GenericMessage<V> {
         let mut encoder = encoder.for_message(&self)?;
         for field in self.fields.into_iter() {
             encoder.encode_field(None, field)?;
+        }
+        Ok(())
+    }
+
+    fn encode_ref<E>(&self, encoder: E) -> Result<(), MessageError<E::Error>>
+    where
+        E: MessageEncoder<V>,
+    {
+        let mut encoder = encoder.for_message(self)?;
+        for field in self.fields.iter() {
+            encoder.encode_field_ref(None, field)?;
         }
         Ok(())
     }

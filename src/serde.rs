@@ -1,12 +1,18 @@
-// use std::collections::VecDeque;
+use std::collections::VecDeque;
 // use std::fmt;
 
-// use std::marker::PhantomData;
+use std::marker::PhantomData;
 
-// use serde::de::{Deserialize, Deserializer, SeqAccess, Visitor};
-// use serde::ser::{Serialize, SerializeSeq, Serializer};
+use serde::de::{Deserialize, Deserializer};
+use serde::ser::{Serialize, SerializeSeq, Serializer};
 
-//use crate::message::{self as msg, Message, MessageError, StandardMessage};
+use crate::message::basic::{
+    AsBasicValueRef, BasicType, BasicValue, BasicValueRef, FromBasicValue,
+};
+use crate::message::special::KnownKind;
+use crate::message::{
+    Message, MessageDecoder, MessageEncoder, MessageError, MessageFieldDecoder, MessageFieldEncoder,
+};
 
 // pub struct SerdeMessageTranslation<V, E> {
 //     value: PhantomData<V>,
@@ -29,144 +35,133 @@
 //     }
 // }
 
-// pub struct ArrayCodec<C>(pub C);
+pub struct ArrayEncoder<S>
+where
+    S: Serializer,
+{
+    inner: S,
+}
 
-// struct SerdeArrayFieldEncoder<S: Serializer>(S::SerializeSeq);
+impl<V, S> MessageEncoder<V> for ArrayEncoder<S>
+where
+    S: Serializer,
+    V: Serialize,
+{
+    type Error = S::Error;
+    type FieldEncoder = ArrayFieldEncoder<S>;
 
-// impl<C> MessageEncoder<C> for ArrayCodec<C>
-// where
-//     C: MessageCodec<Error = <C as Serializer>::Error>,
-//     C: Serializer,
-//     C::Value: Serialize,
-// {
-//     type FieldEncoder = SerdeArrayFieldEncoder<C>;
+    fn for_message<M>(self, message: &M) -> Result<Self::FieldEncoder, MessageError<S::Error>>
+    where
+        M: Message<V>,
+    {
+        let mut seq = self
+            .inner
+            .serialize_seq(message.field_count().1)
+            .map_err(MessageError::Codec)?;
+        seq.serialize_element(&message.kind().code())
+            .map_err(MessageError::Codec)?;
+        Ok(ArrayFieldEncoder(seq))
+    }
+}
 
-//     fn for_message<M>(self, message: &M) -> Result<Self::FieldEncoder, <C as MessageCodec>::Error>
-//     where
-//         M: Message<C::Value>,
-//     {
-//         let mut seq = self.0.serialize_seq(message.field_count().1)?;
-//         seq.serialize_element(&message.kind().code())?;
-//         Ok(SerdeArrayFieldEncoder(seq))
-//     }
-// }
+pub struct ArrayFieldEncoder<S: Serializer>(S::SerializeSeq);
 
-// impl<C> MessageFieldEncoder<C> for SerdeArrayFieldEncoder<C>
-// where
-//     C: MessageCodec<Error = <C as Serializer>::Error>,
-//     C: Serializer,
-//     C::Value: Serialize,
-// {
-//     fn encode_field<'a, T>(
-//         &mut self,
-//         _name: &'static str,
-//         value: &'a T,
-//     ) -> Result<(), <C as MessageCodec>::Error>
-//     where
-//         C::Value: 'a,
-//         T: AsBasicValueRef<'a, C::Value>,
-//     {
-//         use BasicValueRef::*;
-//         match value.as_basic_value_ref() {
-//             U8(v) => self.0.serialize_element(&v),
-//             U64(v) => self.0.serialize_element(&v),
-//             Str(v) => self.0.serialize_element(v),
-//             Map(v) => self.0.serialize_element(v),
-//             Val(v) => self.0.serialize_element(v),
-//         }
-//     }
-// }
+impl<V, S> MessageFieldEncoder<V> for ArrayFieldEncoder<S>
+where
+    S: Serializer,
+    V: Serialize,
+{
+    type Error = S::Error;
 
-// struct SerdeArrayFieldDecoder<C: MessageCodec>(VecDeque<C::Value>);
+    fn encode_field<T>(
+        &mut self,
+        _name: Option<&'static str>,
+        value: T,
+    ) -> Result<(), MessageError<S::Error>>
+    where
+        T: Into<BasicValue<V>>,
+    {
+        use BasicValue::*;
+        match value.into() {
+            U8(v) => self.0.serialize_element(&v),
+            U64(v) => self.0.serialize_element(&v),
+            Str(v) => self.0.serialize_element(&v as &str),
+            Map(v) => self.0.serialize_element(&v),
+            Val(v) => self.0.serialize_element(&v),
+        }
+        .map_err(MessageError::Codec)
+    }
 
-// impl<'de, C> MessageDecoder<'de, C> for ArrayCodec<C>
-// where
-//     C: MessageCodec<Error = <C as Deserializer<'de>>::Error>,
-//     C: Deserializer<'de>,
-//     C::Value: Deserialize<'de>,
-// {
-//     type FieldDecoder = SerdeArrayFieldDecoder<C>;
+    fn encode_field_ref<'a, T>(
+        &mut self,
+        _name: Option<&'static str>,
+        value: &'a T,
+    ) -> Result<(), MessageError<S::Error>>
+    where
+        V: 'a,
+        T: AsBasicValueRef<'a, V>,
+    {
+        use BasicValueRef::*;
+        match value.as_basic_value_ref() {
+            U8(v) => self.0.serialize_element(&v),
+            U64(v) => self.0.serialize_element(&v),
+            Str(v) => self.0.serialize_element(v),
+            Map(v) => self.0.serialize_element(v),
+            Val(v) => self.0.serialize_element(v),
+        }
+        .map_err(MessageError::Codec)
+    }
+}
 
-//     fn for_message(
-//         self,
-//         kind: &Kind,
-//     ) -> Result<Self::FieldDecoder, MessageDecodeError<<C as MessageCodec>::Error>> {
-//         let values = VecDeque::<C::Value>::deserialize(self.0).map(MessageDecodeError::Codec)?;
-//         Ok(SerdeArrayFieldDecoder(values))
-//     }
-// }
+pub struct ArrayDecoder<'de, D>
+where
+    D: Deserializer<'de>,
+{
+    inner: D,
+    lifetime: PhantomData<&'de D>,
+}
 
-// impl<'de, C> MessageFieldDecoder<'de, C> for ArrayCodec<C>
-// where
-//     C: MessageCodec<Error = <C as Deserializer<'de>>::Error>,
-//     C: Deserializer<'de>,
-//     C::Value: Deserialize<'de>,
-// {
-//     fn decode_field<T>(
-//         &mut self,
-//         name: &'static str,
-//     ) -> Result<T, MessageDecodeError<<C as MessageCodec>::Error>>
-//     where
-//         T: FromBasicValue<C::Value>,
-//     {
-//         unimplemented!()
-//     }
-// }
+impl<'de, V, D> MessageDecoder<V> for ArrayDecoder<'de, D>
+where
+    D: Deserializer<'de>,
+    V: Deserialize<'de> + Into<BasicValue<V>>,
+{
+    type Error = D::Error;
+    type FieldDecoder = ArrayFieldDecoder<V, D::Error>;
 
-// // struct ArrayFieldDecoder<V>(VecDeque<V>);
+    fn for_message(self, _kind: KnownKind) -> Result<Self::FieldDecoder, MessageError<D::Error>> {
+        match VecDeque::<V>::deserialize(self.inner) {
+            Ok(values) => Ok(ArrayFieldDecoder {
+                values,
+                error: PhantomData,
+            }),
+            Err(err) => Err(MessageError::Codec(err)),
+        }
+    }
+}
 
-// // impl<V> MessageFieldDecoder<V> for ArrayFieldDecoder<V> {
-// //     type Error = MessageDecodeError;
+pub struct ArrayFieldDecoder<V, E> {
+    values: VecDeque<V>,
+    error: PhantomData<E>,
+}
 
-// //     fn decode_field<T>(&mut self, name: &'static str) -> Result<T, Self::Error>
-// //     where
-// //         T: FromBasicValue<V>,
-// //     {
-// //         let value = self.0.pop_front();
-// //         if T::expected_types() == &[BasicType::Val] {
-// //             return Ok(T::from_basic_value(BasicValue::Val(value)).unwrap());
-// //         }
+impl<V, E> MessageFieldDecoder<V> for ArrayFieldDecoder<V, E>
+where
+    V: Into<BasicValue<V>>,
+{
+    type Error = E;
 
-// //         unimplemented!()
-// //     }
-// // }
-
-// // // impl<'de, C, V> Visitor<'de> for ArrayFieldDecoder<C, V> {
-// // //     type Value = Vec<BasicValue<V>>;
-
-// // //     fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
-// // //     where
-// // //         A: SeqAccess<'de>,
-// // //     {
-// // //         let values_cap = seq.size_hint().unwrap_or(8);
-// // //         let mut values = Vec::with_capacity(values_cap);
-// // //         while let Some(value) = seq.next_element()? {
-// // //             values.push(value)
-// // //         }
-// // //         Ok(values)
-// // //     }
-// // // }
-
-// // // pub struct BasicValueArray<'de, V> {
-// // //     values:
-// // // }
-
-// // // impl<'de, V> Visitor<'de> for BasicValueVisitor<V> {
-// // //     type Value = BasicValue<V>;
-// // // }
-
-// // struct BasicValueVisitor<V> {
-// //     expecting: &'static [BasicType],
-// //     value_typ: PhantomData<V>,
-// // }
-
-// // impl<'de, V> Visitor<'de> for BasicValueVisitor<V>
-// // where
-// //     V: Visitor<'de>,
-// // {
-// //     type Value = BasicValue<V>;
-
-// //     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-// //         write!(f, "expecting basic types: {:?}", self.expecting)
-// //     }
-// // }
+    fn decode_field<T>(&mut self, _name: Option<&'static str>) -> Result<T, MessageError<E>>
+    where
+        T: FromBasicValue<V>,
+        T::Error: Into<MessageError<Self::Error>>,
+    {
+        let value = self.values.pop_front().ok_or(MessageError::<E>::Eof)?;
+        let basic_value = if T::expected_types() == [BasicType::Val] {
+            BasicValue::Val(value)
+        } else {
+            value.into()
+        };
+        T::from_basic_value(basic_value).map_err(Into::into)
+    }
+}

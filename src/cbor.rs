@@ -8,26 +8,23 @@ use crate::message::{self as msg, Message, MessageError, StandardMessage};
 
 pub type Error = MessageError<InnerError>;
 
+// pub struct MessageTranslation;
 
-pub struct MessageTranslation;
+// impl<V> msg::MessageTranslation<V> for MessageTranslation
+// where
+//     V: Serialize,
+// {
+//     type Value = Value;
+//     type Error = Error;
 
-impl<V> msg::MessageTranslation<V> for MessageTranslation
-where
-    V: Serialize,
-{
-    type Value = Value;
-    type Error = Error;
-
-    fn translate<I, O>(message: I) -> Result<O, Self::Error>
-    where
-        I: Message<V>,
-        O: Message<Self::Value>
-    {
-        SerdeTranslator.translate(message)
-    }
-}
-
-
+//     fn translate<I, O>(message: I) -> Result<O, Self::Error>
+//     where
+//         I: Message<V>,
+//         O: Message<Self::Value>
+//     {
+//         SerdeTranslator.translate(message)
+//     }
+// }
 
 // pub struct MessageWriter<W: Write> {
 //     w: Serializer<W>,

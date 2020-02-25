@@ -79,6 +79,15 @@ macro_rules! impl_all_standard_messages {
                 }
             }
 
+            fn encode_ref<E>(&self, encoder: E) -> Result<(), MessageError<E::Error>>
+            where
+                E: MessageEncoder<V>
+            {
+                match self {
+                    $(Self::$kind(m) => m.encode_ref(encoder)),*
+                }
+            }
+
             fn decode<D>(kind: KnownKind, decoder: D) -> Result<Self, MessageError<D::Error>>
             where
                 D: MessageDecoder<V>
@@ -173,6 +182,19 @@ macro_rules! impl_standard_message {
                     encoder.encode_field(
                         Some(stringify!($field)),
                         self.$field
+                    )?;
+                )*
+                Ok(())
+            }
+            fn encode_ref<E>(&self, encoder: E) -> Result<(), MessageError<E::Error>>
+            where
+                E: MessageEncoder<V>,
+            {
+                let mut encoder = encoder.for_message(self)?;
+                $(
+                    encoder.encode_field_ref(
+                        Some(stringify!($field)),
+                        &self.$field
                     )?;
                 )*
                 Ok(())
