@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
-use std::marker::PhantomData;
 
 pub use serde_cbor::Value;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use serde_cbor::de::{Deserializer, IoRead};
 use serde_cbor::ser::{IoWrite, Serializer};
@@ -13,30 +12,28 @@ use crate::io::{Read, Write};
 use crate::message::basic::BasicValue;
 use crate::message::special::KnownKind;
 use crate::message::{self as msg, Message, MessageError};
-use crate::serde::{ArrayDecoder, ArrayFieldEncoder, ArrayEncoder};
+use crate::serde::{ArrayDecoder, ArrayEncoder, ArrayFieldDecoder, ArrayFieldEncoder};
 
 pub type Error = MessageError<InnerError>;
 
-pub struct MessageEncoder<'a, W: Write> {
+pub struct MessageEncoder<W: Write> {
     inner: Serializer<IoWrite<W>>,
-    lifetime: PhantomData::<&'a ()>,
 }
 
-impl<'a, W: Write> MessageEncoder<'a, W> {
+impl<W: Write> MessageEncoder<W> {
     pub fn from_writer(writer: W) -> Self {
         Self {
             inner: Serializer::new(IoWrite::new(writer)),
-            lifetime: PhantomData,
         }
     }
 }
 
-impl<'a, V, W: 'a> msg::MessageEncoder<V> for MessageEncoder<'a, W>
+impl<'a, V, W> msg::MessageEncoder<V> for &'a mut MessageEncoder<W>
 where
     W: Write,
     V: Serialize,
 {
-    type Ok = (); 
+    type Ok = ();
     type Error = InnerError;
     type FieldEncoder = ArrayFieldEncoder<&'a mut Serializer<IoWrite<W>>>;
 
@@ -44,15 +41,31 @@ where
         msg::MessageEncoder::<V>::start(ArrayEncoder::new(&mut self.inner), kind)
     }
 }
-//
-// pub type MessageDecoder<'de, R> = ArrayDecoder<'de, Deserializer<R>>;
 
-// impl<'de, R: Read> MessageDecoder<'de, IoRead<R>> {
-//     pub fn from_reader(reader: R) -> Self {
-//         let inner = Deserializer::new(IoRead::new(reader));
-//         ArrayDecoder::new(inner)
-//     }
-// } 
+pub struct MessageDecoder<R: Read> {
+    inner: Deserializer<IoRead<R>>,
+}
+
+impl<R: Read> MessageDecoder<R> {
+    pub fn from_reader(reader: R) -> Self {
+        Self {
+            inner: Deserializer::new(IoRead::new(reader)),
+        }
+    }
+}
+
+impl<'a, V, R> msg::MessageDecoder<V> for &'a mut MessageDecoder<R>
+where
+    R: Read,
+    V: Deserialize<'a> + Into<BasicValue<V>>,
+{
+    type Error = InnerError;
+    type FieldDecoder = ArrayFieldDecoder<V, InnerError>;
+
+    fn start(self) -> Result<(KnownKind, Self::FieldDecoder), MessageError<Self::Error>> {
+        msg::MessageDecoder::<V>::start(ArrayDecoder::new(&mut self.inner))
+    }
+}
 
 pub struct MessageWriter<W: Write> {
     inner: Serializer<IoWrite<W>>,

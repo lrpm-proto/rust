@@ -182,6 +182,7 @@ macro_rules! impl_standard_message {
                 )*
                 encoder.end()
             }
+
             fn encode_ref<E>(&self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
             where
                 E: MessageEncoder<V>,

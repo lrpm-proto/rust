@@ -55,13 +55,13 @@ where
     type Ok = S::Ok;
     type Error = S::Error;
 
-    fn encode_field<T>(
+    fn encode_field<F>(
         &mut self,
         _name: Option<&'static str>,
-        value: T,
+        value: F,
     ) -> Result<(), MessageError<S::Error>>
     where
-        T: Into<BasicValue<V>>,
+        F: Into<BasicValue<V>>,
     {
         use BasicValue::*;
         match value.into() {
@@ -74,14 +74,14 @@ where
         .map_err(MessageError::Codec)
     }
 
-    fn encode_field_ref<'a, T>(
+    fn encode_field_ref<'f, F>(
         &mut self,
         _name: Option<&'static str>,
-        value: &'a T,
+        value: &'f F,
     ) -> Result<(), MessageError<S::Error>>
     where
-        V: 'a,
-        T: AsBasicValueRef<'a, V>,
+        V: 'f,
+        F: AsBasicValueRef<'f, V>,
     {
         use BasicValueRef::*;
         match value.as_basic_value_ref() {

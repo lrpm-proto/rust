@@ -12,25 +12,25 @@ pub trait MessageFieldEncoder<V> {
     type Ok;
     type Error;
 
-    fn encode_field<T>(
+    fn encode_field<F>(
         &mut self,
         name: Option<&'static str>,
-        value: T,
+        value: F,
     ) -> Result<(), MessageError<Self::Error>>
     where
-        T: Into<BasicValue<V>>,
+        F: Into<BasicValue<V>>,
     {
         self.encode_field_ref(name, &value.into())
     }
 
-    fn encode_field_ref<'a, T>(
+    fn encode_field_ref<'f, F>(
         &mut self,
         name: Option<&'static str>,
-        value: &'a T,
+        value: &'f F,
     ) -> Result<(), MessageError<Self::Error>>
     where
-        V: 'a,
-        T: AsBasicValueRef<'a, V>;
+        V: 'f,
+        F: AsBasicValueRef<'f, V>;
 
     fn end(self) -> Result<Self::Ok, MessageError<Self::Error>>;
 }
@@ -58,6 +58,8 @@ pub trait MessageFieldDecoder<V> {
         T::Error: Into<MessageError<Self::Error>>;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
 pub struct KindDecoder<D> {
     kind: KnownKind,
     field_decoder: D,
@@ -72,7 +74,7 @@ impl<D> KindDecoder<D> {
     }
 }
 
-impl<V, D> MessageDecoder<V> for KindDecoder<D>
+impl<'dec, V, D> MessageDecoder<V> for KindDecoder<D>
 where
     D: MessageFieldDecoder<V>,
 {
@@ -83,13 +85,3 @@ where
         Ok((self.kind, self.field_decoder))
     }
 }
-
-// pub trait MessageTranslation<V> {
-//     type Value;
-//     type Error;
-
-//     fn translate<I, O>(&self, message: I) -> Result<O, Self::Error>
-//     where
-//         I: Message<V>,
-//         O: Message<Self::Value>;
-// }
