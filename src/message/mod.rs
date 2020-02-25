@@ -104,7 +104,9 @@ impl_all_standard_messages!(
         Goodbye,
         [
             /// A URI uniquely describing the close reason.
-            reason: Uri
+            reason: Uri,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -113,7 +115,9 @@ impl_all_standard_messages!(
         Hello,
         [
             /// The body of the message.
-            body: Body<V>
+            body: Body<V>,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -122,7 +126,9 @@ impl_all_standard_messages!(
         Prove,
         [
             /// The body of the message.
-            body: Body<V>
+            body: Body<V>,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -131,7 +137,9 @@ impl_all_standard_messages!(
         Proof,
         [
             /// The body of the message.
-            body: Body<V>
+            body: Body<V>,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -146,7 +154,9 @@ impl_all_standard_messages!(
             /// A URI uniquely describing the error.
             error: Uri,
             /// Body of the error message.
-            body: Body<V>
+            body: Body<V>,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -155,7 +165,9 @@ impl_all_standard_messages!(
         Cancel,
         [
             /// The ID of the request we want to cancel.
-            request_id: Id
+            request_id: Id,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -168,7 +180,9 @@ impl_all_standard_messages!(
             /// A URI uniquely describing the procedure.
             procedure: Uri,
             /// The body of the message.
-            body: Body<V>
+            body: Body<V>,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -179,7 +193,9 @@ impl_all_standard_messages!(
             /// The ID of the call we are responding to.
             request_id: Id,
             /// The successful body result from the call.
-            body: Body<V>
+            body: Body<V>,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -192,7 +208,9 @@ impl_all_standard_messages!(
             /// The subscription ID.
             subscription_id: Id,
             /// The body of the event.
-            body: Body<V>
+            body: Body<V>,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -205,7 +223,9 @@ impl_all_standard_messages!(
             ///  A URI describing the topic we are publishing to.
             topic: Uri,
             /// The body of the event being published.
-            body: Body<V>
+            body: Body<V>,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -216,7 +236,9 @@ impl_all_standard_messages!(
             /// The ID of the publication request.
             request_id: Id,
             /// An ID uniquely describing the publication.
-            publication_id: Id
+            publication_id: Id,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -227,7 +249,9 @@ impl_all_standard_messages!(
             /// An ID uniquely describing the subscription request.
             request_id: Id,
             /// A URI describing the topic we are subscribing to.
-            topic: Uri
+            topic: Uri,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -238,7 +262,9 @@ impl_all_standard_messages!(
             /// The ID of the subscription request.
             request_id: Id,
             /// An ID uniquely describing the subscription.
-            subscription_id: Id
+            subscription_id: Id,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -249,7 +275,9 @@ impl_all_standard_messages!(
             /// An ID uniquely describing the unsubscribe request.
             request_id: Id,
             /// The subscription ID we are unsubscribing from.
-            subscription_id: Id
+            subscription_id: Id,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     ),
     (
@@ -258,7 +286,9 @@ impl_all_standard_messages!(
         Unsubscribed,
         [
             /// The ID of the unsubscribe request.
-            request_id: Id
+            request_id: Id,
+            /// Optional meta information on this message.
+            meta: Meta<V>
         ]
     )
 );

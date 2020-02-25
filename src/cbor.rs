@@ -158,3 +158,33 @@ impl From<Value> for BasicValue<Value> {
 //         SerdeTranslator.translate(message)
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use bytes::BytesMut;
+    use bytes::buf::{BufExt, BufMutExt};
+
+    use super::*;
+    use crate::message::{HelloMessage, StandardMessage};
+    use crate::message::special::{Meta, Body};
+
+    #[test]
+    fn test_message_encoder_decoder() {
+        let src_message = HelloMessage::new(Body::new(Value::Text("1".into())), Meta::new());
+        // Encoder
+        let mut writer = BytesMut::new().writer();
+        let mut encoder = MessageEncoder::from_writer(&mut writer);
+        src_message.encode(&mut encoder).unwrap();
+        // Buf
+        let buf = writer.into_inner();
+        assert_eq!(&[0x83, 0x02, 0x61, 0x31, 0xA0][..], &buf[..]);
+        // Decoder
+        let reader = buf.reader();
+        let mut decoder = MessageDecoder::from_reader(reader);
+        let message = StandardMessage::<Value>::decode(&mut decoder).unwrap();
+        match message {
+            StandardMessage::Hello(_) => (),
+            other => panic!("unexpected message {:?}", other),
+        }
+    }
+}

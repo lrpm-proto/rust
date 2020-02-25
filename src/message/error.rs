@@ -2,6 +2,7 @@ use std::convert::Infallible;
 
 use super::{Kind, ParseBasicUriError, ParseKnownKindError, UnexpectedBasicTypeError};
 
+#[derive(Debug)]
 pub enum MessageError<E> {
     Eof,
     Codec(E),

@@ -5,7 +5,8 @@ macro_rules! impl_standard_kind {
                 $(#[$attr:meta])*
                 $name:ident,
                 $name_str:expr,
-                $code:expr
+                $code:expr,
+                $fields_count:expr
             )
         ),*
     ) => {
@@ -37,6 +38,13 @@ macro_rules! impl_standard_kind {
             pub fn name(self) -> &'static str {
                 match self {
                     $(Self::$name => $name_str),*
+                }
+            }
+
+            /// Returns the lower and upper bound of the number of fields in the message kind.
+            pub fn field_count(&self) -> (usize, Option<usize>) {
+                match self {
+                    $(Self::$name => ($fields_count + 1, Some($fields_count + 1))),*
                 }
             }
         }
@@ -148,18 +156,14 @@ macro_rules! impl_standard_message {
                 $(#[$field_attr])*
                 pub $field: $field_ty
             ),*,
-            #[doc="Optional meta information on this message."]
-            pub meta: Meta<V>,
         }
 
         impl<V> $name<V> {
             pub fn new(
                 $($field: $field_ty),*,
-                meta: Meta<V>,
             ) -> Self {
                 Self {
                     $($field),*,
-                    meta,
                 }
             }
         }
@@ -210,7 +214,6 @@ macro_rules! impl_standard_message {
                     $(
                         $field: decoder.decode_field::<$field_ty>(Some(stringify!($field)))?
                     ),*,
-                    meta: decoder.decode_field::<Meta<V>>(Some("meta"))?
                 })
             }
 

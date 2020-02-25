@@ -139,6 +139,10 @@ impl<V> FromBasicValue<V> for BasicValue<V> {
 pub struct Map<V>(BTreeMap<String, V>);
 
 impl<V> Map<V> {
+    pub fn new() -> Self {
+        Self(Default::default())
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -149,6 +153,12 @@ impl<V> Map<V> {
 
     pub fn iter(&self) -> impl Iterator<Item = (&str, &V)> {
         self.0.iter().map(|(k, v)| (k.as_str(), v))
+    }
+}
+
+impl<V> From<Map<V>> for BasicValue<V> {
+    fn from(value: Map<V>) -> Self {
+        BasicValue::Map(value)
     }
 }
 

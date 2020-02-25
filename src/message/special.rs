@@ -215,6 +215,18 @@ impl<V> FromBasicValue<V> for Uri {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Meta<V>(Map<V>);
 
+impl<V> Meta<V> {
+    pub fn new() -> Self {
+        Self(Map::new())
+    }
+}
+
+impl<V> From<Meta<V>> for BasicValue<V> {
+    fn from(value: Meta<V>) -> Self {
+        value.0.into()
+    }
+}
+
 impl<'a, V> AsBasicValueRef<'a, V> for Meta<V> {
     fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
         BasicValueRef::Map(&self.0)
@@ -242,6 +254,12 @@ impl<V> FromBasicValue<V> for Meta<V> {
 /// Application specific value.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Body<V>(V);
+
+impl<V> Body<V> {
+    pub fn new(value: V) -> Self {
+        Self(value)
+    }
+}
 
 impl<V> From<Body<V>> for BasicValue<V> {
     fn from(value: Body<V>) -> Self {
@@ -380,8 +398,22 @@ impl KnownKind {
 
     /// Returns the lower and upper bound of the number of fields in the message kind.
     pub fn field_count(&self) -> (usize, Option<usize>) {
-        // TODO
-        (0, None)
+        match self {
+            Self::Standard(k) => k.field_count(),
+            Self::Custom(k) => k.field_count(),
+        }
+    }
+}
+
+impl From<CustomKind> for KnownKind {
+    fn from(kind: CustomKind) -> Self {
+        Self::Custom(kind)
+    }
+}
+
+impl From<StandardKind> for KnownKind {
+    fn from(kind: StandardKind) -> Self {
+        Self::Standard(kind)
     }
 }
 
@@ -442,12 +474,14 @@ impl<'a, V> AsBasicValueRef<'a, V> for KnownKind {
 pub struct CustomKind {
     name: &'static str,
     code: u8,
+    fields_min: usize,
+    fields_max: Option<usize>,
 }
 
 impl CustomKind {
     /// Constructs a new custom kind.
-    pub const fn new(name: &'static str, code: u8) -> Self {
-        Self { name, code }
+    pub const fn new(name: &'static str, code: u8, fields_min: usize, fields_max: Option<usize>) -> Self {
+        Self { name, code, fields_min, fields_max }
     }
 
     /// Returns the kind code.
@@ -459,28 +493,33 @@ impl CustomKind {
     pub fn name(&self) -> &'static str {
         self.name
     }
+
+    /// Returns the lower and upper bound of the number of fields in the message kind.
+    pub fn field_count(&self) -> (usize, Option<usize>) {
+        (self.fields_min, self.fields_max)
+    }
 }
 
 impl_standard_kind!(
     // Init
-    (Goodbye, "GOODBYE", 1),
-    (Hello, "HELLO", 2),
-    (Prove, "PROVE", 3),
-    (Proof, "PROOF", 4),
+    (Goodbye, "GOODBYE", 1, 2),
+    (Hello, "HELLO", 2, 2),
+    (Prove, "PROVE", 3, 2),
+    (Proof, "PROOF", 4, 2),
     // Generic
-    (Error, "ERROR", 20),
-    (Cancel, "CANCEL", 21),
+    (Error, "ERROR", 20, 5),
+    (Cancel, "CANCEL", 21, 2),
     // RPC
-    (Call, "CALL", 40),
-    (Result, "RESULT", 41),
+    (Call, "CALL", 40, 4),
+    (Result, "RESULT", 41, 3),
     // PubSub
-    (Event, "EVENT", 60),
-    (Publish, "PUBLISH", 61),
-    (Published, "PUBLISHED", 62),
-    (Subscribe, "SUBSCRIBE", 63),
-    (Subscribed, "SUBSCRIBED", 64),
-    (Unsubscribe, "UNSUBSCRIBE", 65),
-    (Unsubscribed, "UNSUBSCRIBED", 66)
+    (Event, "EVENT", 60, 4),
+    (Publish, "PUBLISH", 61, 4),
+    (Published, "PUBLISHED", 62, 3),
+    (Subscribe, "SUBSCRIBE", 63, 3),
+    (Subscribed, "SUBSCRIBED", 64, 3),
+    (Unsubscribe, "UNSUBSCRIBE", 65, 3),
+    (Unsubscribed, "UNSUBSCRIBED", 66, 2)
 );
 
 impl StandardKind {
