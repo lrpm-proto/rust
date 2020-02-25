@@ -47,9 +47,7 @@ pub trait MessageDecoder<V> {
 pub trait MessageFieldDecoder<V> {
     type Error;
 
-    fn remaining(&self) -> Option<usize> {
-        None
-    }
+    fn remaining(&self) -> Option<usize>;
 
     fn decode_field<T>(
         &mut self,

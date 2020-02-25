@@ -153,6 +153,10 @@ where
 {
     type Error = E;
 
+    fn remaining(&self) -> Option<usize> {
+        Some(self.values.len())
+    }
+
     fn decode_field<T>(&mut self, _name: Option<&'static str>) -> Result<T, MessageError<E>>
     where
         T: FromBasicValue<V>,

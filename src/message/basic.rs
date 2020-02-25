@@ -1,5 +1,6 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::convert::Infallible;
+use std::iter::FromIterator;
 
 use bytestring::ByteString;
 use serde::{Deserialize, Serialize};
@@ -135,7 +136,7 @@ impl<V> FromBasicValue<V> for BasicValue<V> {
 
 /// A `Str` key to `Val` structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Map<V>(HashMap<String, V>);
+pub struct Map<V>(BTreeMap<String, V>);
 
 impl<V> Map<V> {
     pub fn len(&self) -> usize {
@@ -154,5 +155,19 @@ impl<V> Map<V> {
 impl<'a, V> AsBasicValueRef<'a, V> for Map<V> {
     fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
         BasicValueRef::Map(&self)
+    }
+}
+
+impl<K, V> FromIterator<(K, V)> for Map<V>
+where
+    K: Into<String>,
+{
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = (K, V)>,
+    {
+        let iter = iter.into_iter().map(|(k, v)| (k.into(), v));
+        let map = BTreeMap::from_iter(iter);
+        Self(map)
     }
 }
