@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fmt;
 
@@ -18,6 +17,12 @@ pub struct Id(u64);
 impl Id {
     pub const fn new(value: u64) -> Self {
         Self(value)
+    }
+}
+
+impl<V> From<Id> for BasicValue<V> {
+    fn from(value: Id) -> Self {
+        Self::U64(value.0)
     }
 }
 
@@ -164,6 +169,12 @@ impl TryFrom<ByteString> for Uri {
     }
 }
 
+impl<V> From<Uri> for BasicValue<V> {
+    fn from(value: Uri) -> Self {
+        Self::Str(value.contents)
+    }
+}
+
 impl<'a, V> AsBasicValueRef<'a, V> for Uri {
     fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
         BasicValueRef::Str(self.as_str())
@@ -232,6 +243,12 @@ impl<V> FromBasicValue<V> for Meta<V> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Body<V>(V);
 
+impl<V> From<Body<V>> for BasicValue<V> {
+    fn from(value: Body<V>) -> Self {
+        Self::Val(value.0)
+    }
+}
+
 impl<'a, V> AsBasicValueRef<'a, V> for Body<V> {
     fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
         BasicValueRef::Val(&self.0)
@@ -271,11 +288,20 @@ impl Kind {
         Self::Unknown(UnknownKind::Code(code))
     }
 
-    pub fn from_name(name: String) -> Self {
-        if let Some(known) = KnownKind::from_name(name.as_str()) {
+    pub fn from_name(name: ByteString) -> Self {
+        if let Some(known) = KnownKind::from_name(name.as_ref()) {
             return Self::Known(known);
         }
-        Self::Unknown(UnknownKind::Name(name.into()))
+        Self::Unknown(UnknownKind::Name(name))
+    }
+}
+
+impl<V> From<Kind> for BasicValue<V> {
+    fn from(value: Kind) -> Self {
+        match value {
+            Kind::Known(k) => k.into(),
+            Kind::Unknown(k) => k.into(),
+        }
     }
 }
 
@@ -307,8 +333,17 @@ impl<V> FromBasicValue<V> for Kind {
 /// Represents an unknown message kind.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnknownKind {
-    Name(Cow<'static, str>),
+    Name(ByteString),
     Code(u8),
+}
+
+impl<V> From<UnknownKind> for BasicValue<V> {
+    fn from(value: UnknownKind) -> Self {
+        match value {
+            UnknownKind::Name(s) => Self::Str(s),
+            UnknownKind::Code(c) => Self::U8(c),
+        }
+    }
 }
 
 impl<'a, V> AsBasicValueRef<'a, V> for UnknownKind {
@@ -321,7 +356,7 @@ impl<'a, V> AsBasicValueRef<'a, V> for UnknownKind {
 }
 
 /// Represents a defined message kind.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KnownKind {
     Standard(StandardKind),
     Custom(CustomKind),
@@ -344,11 +379,20 @@ impl KnownKind {
     }
 }
 
+impl<V> From<KnownKind> for BasicValue<V> {
+    fn from(value: KnownKind) -> Self {
+        match value {
+            KnownKind::Standard(k) => k.into(),
+            KnownKind::Custom(k) => BasicValue::U8(k.code()),
+        }
+    }
+}
+
 impl<'a, V> AsBasicValueRef<'a, V> for KnownKind {
     fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
         match self {
             Self::Standard(k) => k.as_basic_value_ref(),
-            Self::Custom(k) => BasicValueRef::U8(k.code),
+            Self::Custom(k) => BasicValueRef::U8(k.code()),
         }
     }
 }
@@ -408,6 +452,12 @@ impl StandardKind {
 impl From<StandardKind> for u8 {
     fn from(kind: StandardKind) -> u8 {
         kind as u8
+    }
+}
+
+impl<V> From<StandardKind> for BasicValue<V> {
+    fn from(value: StandardKind) -> Self {
+        BasicValue::U8(value.code())
     }
 }
 

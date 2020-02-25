@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::convert::Infallible;
 
+use bytestring::ByteString;
 use serde::{Deserialize, Serialize};
 
 /// Error produced from a invalid basic type conversion.
@@ -24,7 +26,7 @@ pub enum BasicType {
 pub enum BasicValue<V> {
     U8(u8),
     U64(u64),
-    Str(String),
+    Str(ByteString),
     Map(Map<V>),
     Val(V),
 }
@@ -110,6 +112,24 @@ pub trait FromBasicValue<V>: Sized {
             actual: unexpected.ty(),
         }
         .into()
+    }
+}
+
+impl<V> FromBasicValue<V> for BasicValue<V> {
+    type Error = Infallible;
+
+    fn expected_types() -> &'static [BasicType] {
+        &[
+            BasicType::U8,
+            BasicType::U64,
+            BasicType::Str,
+            BasicType::Map,
+            BasicType::Val,
+        ]
+    }
+
+    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error> {
+        Ok(value)
     }
 }
 
