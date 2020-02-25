@@ -1,6 +1,4 @@
 use std::collections::VecDeque;
-// use std::fmt;
-
 use std::marker::PhantomData;
 
 use serde::de::{Deserialize, Deserializer};
@@ -11,35 +9,20 @@ use crate::message::basic::{
 };
 use crate::message::special::KnownKind;
 use crate::message::{
-    Message, MessageDecoder, MessageEncoder, MessageError, MessageFieldDecoder, MessageFieldEncoder,
+    MessageDecoder, MessageEncoder, MessageError, MessageFieldDecoder, MessageFieldEncoder,
 };
 
-// pub struct SerdeMessageTranslation<V, E> {
-//     value: PhantomData<V>,
-//     error: PhantomData<E>,
-// }
+pub struct ArrayEncoder<S> {
+    inner: S,
+}
 
-// impl<VI, VO, E> msg::MessageTranslation<VI> for SerdeMessageTranslation<VO, E>
-// where
-//     VI: Serialize,
-// {
-//     type Value = VO;
-//     type Error = MessageError<E>;
-
-//     fn translate<I, O>(message: I) -> Result<O, Self::Error>
-//     where
-//         I: Message<VI>,
-//         O: Message<Self::Value>
-//     {
-//         unimplemented!()
-//     }
-// }
-
-pub struct ArrayEncoder<S>
+impl<S> ArrayEncoder<S>
 where
     S: Serializer,
 {
-    inner: S,
+    pub fn new(ser: S) -> Self {
+        Self { inner: ser }
+    }
 }
 
 impl<V, S> MessageEncoder<V> for ArrayEncoder<S>
@@ -47,18 +30,16 @@ where
     S: Serializer,
     V: Serialize,
 {
+    type Ok = S::Ok;
     type Error = S::Error;
     type FieldEncoder = ArrayFieldEncoder<S>;
 
-    fn for_message<M>(self, message: &M) -> Result<Self::FieldEncoder, MessageError<S::Error>>
-    where
-        M: Message<V>,
-    {
+    fn start(self, kind: KnownKind) -> Result<Self::FieldEncoder, MessageError<S::Error>> {
         let mut seq = self
             .inner
-            .serialize_seq(message.field_count().1)
+            .serialize_seq(kind.field_count().1)
             .map_err(MessageError::Codec)?;
-        seq.serialize_element(&message.kind().code())
+        seq.serialize_element(&kind.code())
             .map_err(MessageError::Codec)?;
         Ok(ArrayFieldEncoder(seq))
     }
@@ -71,6 +52,7 @@ where
     S: Serializer,
     V: Serialize,
 {
+    type Ok = S::Ok;
     type Error = S::Error;
 
     fn encode_field<T>(
@@ -111,6 +93,22 @@ where
         }
         .map_err(MessageError::Codec)
     }
+
+    fn end(self) -> Result<S::Ok, MessageError<S::Error>> {
+        self.0.end().map_err(MessageError::Codec)
+    }
+}
+
+impl<'de, D> ArrayDecoder<'de, D>
+where
+    D: Deserializer<'de>,
+{
+    pub fn new(de: D) -> Self {
+        Self {
+            inner: de,
+            lifetime: PhantomData,
+        }
+    }
 }
 
 pub struct ArrayDecoder<'de, D>
@@ -129,12 +127,16 @@ where
     type Error = D::Error;
     type FieldDecoder = ArrayFieldDecoder<V, D::Error>;
 
-    fn for_message(self, _kind: KnownKind) -> Result<Self::FieldDecoder, MessageError<D::Error>> {
+    fn start(self) -> Result<(KnownKind, Self::FieldDecoder), MessageError<D::Error>> {
         match VecDeque::<V>::deserialize(self.inner) {
-            Ok(values) => Ok(ArrayFieldDecoder {
-                values,
-                error: PhantomData,
-            }),
+            Ok(values) => {
+                let mut field_decoder = ArrayFieldDecoder {
+                    values,
+                    error: PhantomData,
+                };
+                let kind = field_decoder.decode_field(Some("kind"))?;
+                Ok((kind, field_decoder))
+            }
             Err(err) => Err(MessageError::Codec(err)),
         }
     }
@@ -165,3 +167,24 @@ where
         T::from_basic_value(basic_value).map_err(Into::into)
     }
 }
+
+// pub struct SerdeMessageTranslation<V, E> {
+//     value: PhantomData<V>,
+//     error: PhantomData<E>,
+// }
+
+// impl<VI, VO, E> msg::MessageTranslation<VI> for SerdeMessageTranslation<VO, E>
+// where
+//     VI: Serialize,
+// {
+//     type Value = VO;
+//     type Error = MessageError<E>;
+
+//     fn translate<I, O>(message: I) -> Result<O, Self::Error>
+//     where
+//         I: Message<VI>,
+//         O: Message<Self::Value>
+//     {
+//         unimplemented!()
+//     }
+// }

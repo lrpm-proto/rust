@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 
-use super::{Kind, ParseBasicUriError, UnexpectedBasicTypeError};
+use super::{Kind, ParseBasicUriError, ParseKnownKindError, UnexpectedBasicTypeError};
 
 pub enum MessageError<E> {
     Eof,
@@ -21,6 +21,15 @@ impl<E> MessageError<E> {
             UnexpectedKind(k) => UnexpectedKind(k),
             UnexpectedType(b) => UnexpectedType(b),
             Custom(c) => Custom(c),
+        }
+    }
+}
+
+impl<E> From<ParseKnownKindError> for MessageError<E> {
+    fn from(err: ParseKnownKindError) -> Self {
+        match err {
+            ParseKnownKindError::UnexpectedType(t) => t.into(),
+            ParseKnownKindError::UnknownKind(k) => Self::UnexpectedKind(Kind::Unknown(k)),
         }
     }
 }

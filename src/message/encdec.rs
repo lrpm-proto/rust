@@ -1,15 +1,15 @@
-use super::{AsBasicValueRef, BasicValue, FromBasicValue, KnownKind, Message, MessageError};
+use super::{AsBasicValueRef, BasicValue, FromBasicValue, KnownKind, MessageError};
 
 pub trait MessageEncoder<V> {
+    type Ok;
     type Error;
-    type FieldEncoder: MessageFieldEncoder<V, Error = Self::Error>;
+    type FieldEncoder: MessageFieldEncoder<V, Ok = Self::Ok, Error = Self::Error>;
 
-    fn for_message<M>(self, message: &M) -> Result<Self::FieldEncoder, MessageError<Self::Error>>
-    where
-        M: Message<V>;
+    fn start(self, kind: KnownKind) -> Result<Self::FieldEncoder, MessageError<Self::Error>>;
 }
 
 pub trait MessageFieldEncoder<V> {
+    type Ok;
     type Error;
 
     fn encode_field<T>(
@@ -31,6 +31,8 @@ pub trait MessageFieldEncoder<V> {
     where
         V: 'a,
         T: AsBasicValueRef<'a, V>;
+
+    fn end(self) -> Result<Self::Ok, MessageError<Self::Error>>;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -39,7 +41,7 @@ pub trait MessageDecoder<V> {
     type Error;
     type FieldDecoder: MessageFieldDecoder<V, Error = Self::Error>;
 
-    fn for_message(self, kind: KnownKind) -> Result<Self::FieldDecoder, MessageError<Self::Error>>;
+    fn start(self) -> Result<(KnownKind, Self::FieldDecoder), MessageError<Self::Error>>;
 }
 
 pub trait MessageFieldDecoder<V> {
@@ -56,6 +58,32 @@ pub trait MessageFieldDecoder<V> {
     where
         T: FromBasicValue<V>,
         T::Error: Into<MessageError<Self::Error>>;
+}
+
+pub struct KindDecoder<D> {
+    kind: KnownKind,
+    field_decoder: D,
+}
+
+impl<D> KindDecoder<D> {
+    pub fn new(kind: KnownKind, field_decoder: D) -> Self {
+        Self {
+            kind,
+            field_decoder,
+        }
+    }
+}
+
+impl<V, D> MessageDecoder<V> for KindDecoder<D>
+where
+    D: MessageFieldDecoder<V>,
+{
+    type Error = D::Error;
+    type FieldDecoder = D;
+
+    fn start(self) -> Result<(KnownKind, Self::FieldDecoder), MessageError<Self::Error>> {
+        Ok((self.kind, self.field_decoder))
+    }
 }
 
 // pub trait MessageTranslation<V> {

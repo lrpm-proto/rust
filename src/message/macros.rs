@@ -70,7 +70,7 @@ macro_rules! impl_all_standard_messages {
                 }
             }
 
-            fn encode<E>(self, encoder: E) -> Result<(), MessageError<E::Error>>
+            fn encode<E>(self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
             where
                 E: MessageEncoder<V>
             {
@@ -79,7 +79,7 @@ macro_rules! impl_all_standard_messages {
                 }
             }
 
-            fn encode_ref<E>(&self, encoder: E) -> Result<(), MessageError<E::Error>>
+            fn encode_ref<E>(&self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
             where
                 E: MessageEncoder<V>
             {
@@ -88,10 +88,12 @@ macro_rules! impl_all_standard_messages {
                 }
             }
 
-            fn decode<D>(kind: KnownKind, decoder: D) -> Result<Self, MessageError<D::Error>>
+            fn decode<D>(decoder: D) -> Result<Self, MessageError<D::Error>>
             where
                 D: MessageDecoder<V>
             {
+                let (kind, decoder) = decoder.start()?;
+                let decoder = KindDecoder::new(kind, decoder);
                 let std_kind = match kind {
                     k @ KnownKind::Custom(_) => {
                         return Err(MessageError::UnexpectedKind(Kind::Known(k)).into())
@@ -101,7 +103,7 @@ macro_rules! impl_all_standard_messages {
 
                 let message = match std_kind {
                     $(
-                        StandardKind::$kind => StandardMessage::$kind($name::decode(kind, decoder)?)
+                        StandardKind::$kind => StandardMessage::$kind($name::decode(decoder)?)
                     ),*
                 };
 
@@ -111,12 +113,6 @@ macro_rules! impl_all_standard_messages {
             // fn into_standard(self) -> Option<Self> {
             //     Some(self)
             // }
-
-            fn field_count(&self) -> (usize, Option<usize>) {
-                match self {
-                    $(Self::$kind(m) => m.field_count()),*
-                }
-            }
         }
 
         $(
@@ -173,38 +169,38 @@ macro_rules! impl_standard_message {
                 KnownKind::Standard(StandardKind::$kind)
             }
 
-            fn encode<E>(self, encoder: E) -> Result<(), MessageError<E::Error>>
+            fn encode<E>(self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
             where
                 E: MessageEncoder<V>,
             {
-                let mut encoder = encoder.for_message(&self)?;
+                let mut encoder = encoder.start(self.kind())?;
                 $(
                     encoder.encode_field(
                         Some(stringify!($field)),
                         self.$field
                     )?;
                 )*
-                Ok(())
+                encoder.end()
             }
-            fn encode_ref<E>(&self, encoder: E) -> Result<(), MessageError<E::Error>>
+            fn encode_ref<E>(&self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
             where
                 E: MessageEncoder<V>,
             {
-                let mut encoder = encoder.for_message(self)?;
+                let mut encoder = encoder.start(self.kind())?;
                 $(
                     encoder.encode_field_ref(
                         Some(stringify!($field)),
                         &self.$field
                     )?;
                 )*
-                Ok(())
+                encoder.end()
             }
 
-            fn decode<D>(kind: KnownKind, decoder: D) -> Result<Self, MessageError<D::Error>>
+            fn decode<D>(decoder: D) -> Result<Self, MessageError<D::Error>>
             where
                 D: MessageDecoder<V>
             {
-                let mut decoder = decoder.for_message(kind)?;
+                let (kind, mut decoder) = decoder.start()?;
                 // TODO: better eq
                 if kind != KnownKind::Standard(StandardKind::$kind) {
                     return Err(MessageError::UnexpectedKind(Kind::Known(kind)).into());
@@ -220,11 +216,6 @@ macro_rules! impl_standard_message {
             // fn into_standard(self) -> Option<StandardMessage<V>> {
             //     Some(StandardMessage::$kind(self))
             // }
-
-            fn field_count(&self) -> (usize, Option<usize>) {
-                // TODO: impl
-                (0, None)
-            }
         }
     };
 }

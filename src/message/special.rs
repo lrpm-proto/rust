@@ -377,6 +377,46 @@ impl KnownKind {
     pub fn from_code(code: u8) -> Option<Self> {
         StandardKind::from_code(code).map(Self::Standard)
     }
+
+    /// Returns the lower and upper bound of the number of fields in the message kind.
+    pub fn field_count(&self) -> (usize, Option<usize>) {
+        // TODO
+        (0, None)
+    }
+}
+
+pub enum ParseKnownKindError {
+    UnknownKind(UnknownKind),
+    UnexpectedType(UnexpectedBasicTypeError),
+}
+
+impl From<UnexpectedBasicTypeError> for ParseKnownKindError {
+    fn from(err: UnexpectedBasicTypeError) -> Self {
+        Self::UnexpectedType(err)
+    }
+}
+
+impl<V> FromBasicValue<V> for KnownKind {
+    type Error = ParseKnownKindError;
+
+    fn expected_types() -> &'static [BasicType] {
+        &[BasicType::U8, BasicType::Str]
+    }
+
+    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error> {
+        let unknown_kind = match value {
+            BasicValue::U8(v) => match Self::from_code(v) {
+                Some(v) => return Ok(v),
+                None => UnknownKind::Code(v),
+            },
+            BasicValue::Str(v) => match Self::from_name(v.as_ref()) {
+                Some(v) => return Ok(v),
+                None => UnknownKind::Name(v),
+            },
+            other => return Err(Self::unexpected_error(other)),
+        };
+        Err(ParseKnownKindError::UnknownKind(unknown_kind))
+    }
 }
 
 impl<V> From<KnownKind> for BasicValue<V> {

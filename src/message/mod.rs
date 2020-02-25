@@ -19,7 +19,7 @@ pub trait Message<V>: Sized {
     fn kind(&self) -> KnownKind;
 
     /// Consumes and encodes the message given an encoder.
-    fn encode<E>(self, encoder: E) -> Result<(), MessageError<E::Error>>
+    fn encode<E>(self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
     where
         E: MessageEncoder<V>,
     {
@@ -27,17 +27,14 @@ pub trait Message<V>: Sized {
     }
 
     /// Encodes the message given an encoder.
-    fn encode_ref<E>(&self, encoder: E) -> Result<(), MessageError<E::Error>>
+    fn encode_ref<E>(&self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
     where
         E: MessageEncoder<V>;
 
     /// Decodes the message given basic values and a known kind.
-    fn decode<D>(kind: KnownKind, decoder: D) -> Result<Self, MessageError<D::Error>>
+    fn decode<D>(decoder: D) -> Result<Self, MessageError<D::Error>>
     where
         D: MessageDecoder<V>;
-
-    /// Returns the lower and upper bound of the number of fields in the message.
-    fn field_count(&self) -> (usize, Option<usize>);
 
     // /// Convert the message into a standard message if applicable.
     // fn into_standard(self) -> Result<StandardMessage<V>, MessageError<()>>;
@@ -60,44 +57,39 @@ impl<V> Message<V> for GenericMessage<V> {
         self.kind
     }
 
-    fn encode<E>(self, encoder: E) -> Result<(), MessageError<E::Error>>
+    fn encode<E>(self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
     where
         E: MessageEncoder<V>,
     {
-        let mut encoder = encoder.for_message(&self)?;
+        let mut encoder = encoder.start(self.kind())?;
         for field in self.fields.into_iter() {
             encoder.encode_field(None, field)?;
         }
-        Ok(())
+        encoder.end()
     }
 
-    fn encode_ref<E>(&self, encoder: E) -> Result<(), MessageError<E::Error>>
+    fn encode_ref<E>(&self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
     where
         E: MessageEncoder<V>,
     {
-        let mut encoder = encoder.for_message(self)?;
+        let mut encoder = encoder.start(self.kind())?;
         for field in self.fields.iter() {
             encoder.encode_field_ref(None, field)?;
         }
-        Ok(())
+        encoder.end()
     }
 
-    fn decode<D>(kind: KnownKind, decoder: D) -> Result<Self, MessageError<D::Error>>
+    fn decode<D>(decoder: D) -> Result<Self, MessageError<D::Error>>
     where
         D: MessageDecoder<V>,
     {
-        let mut decoder = decoder.for_message(kind)?;
+        let (kind, mut decoder) = decoder.start()?;
         let cap = decoder.remaining().unwrap_or(0);
         let mut fields = Vec::with_capacity(cap);
         while Some(0) != decoder.remaining() {
             fields.push(decoder.decode_field(None)?);
         }
         Ok(Self::new(kind, fields))
-    }
-
-    fn field_count(&self) -> (usize, Option<usize>) {
-        let len = 1 + self.fields.len();
-        (len, Some(len))
     }
 
     // fn into_standard(self) -> Result<StandardMessage<V>, MessageError<()>> {

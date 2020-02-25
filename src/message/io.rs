@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use crate::io::{Read, Write};
 
 use super::Message;
 
@@ -9,7 +9,7 @@ where
     type Value;
     type Error;
 
-    fn write_message<M>(&mut self, message: &M) -> Result<usize, Self::Error>
+    fn write_message<M>(&mut self, message: &M) -> Result<(), Self::Error>
     where
         M: Message<Self::Value>;
 }
