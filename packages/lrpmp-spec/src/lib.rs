@@ -1,4 +1,4 @@
-#[cfg(codegen)]
+#[cfg(any(codegen, test))]
 pub mod codegen;
 
 use std::str::FromStr;
