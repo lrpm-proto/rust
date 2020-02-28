@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::errors::Error;
 
-const SPEC_STR: &str = include_str!("../../spec/src/definitions.toml");
+const SPEC_STR: &str = include_str!("../spec/src/definitions.toml");
 
 pub mod errors {
     use error_chain::error_chain;
