@@ -161,12 +161,12 @@ impl From<Value> for BasicValue<Value> {
 
 #[cfg(test)]
 mod tests {
-    use bytes::BytesMut;
     use bytes::buf::{BufExt, BufMutExt};
+    use bytes::BytesMut;
 
     use super::*;
+    use crate::message::special::{Body, Meta};
     use crate::message::{HelloMessage, StandardMessage};
-    use crate::message::special::{Meta, Body};
 
     #[test]
     fn test_message_encoder_decoder() {

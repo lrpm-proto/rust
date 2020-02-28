@@ -181,3 +181,9 @@ where
         Self(map)
     }
 }
+
+impl<V> Default for Map<V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

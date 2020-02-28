@@ -1,0 +1,11 @@
+[package]
+name = "lrpmp-spec"
+version = "0.1.0"
+authors = ["avitex <theavitex@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+quote = "~1"
+toml = "0.5"
+serde = { version = "~1", features = ["derive"] }
+error-chain = "0.12"

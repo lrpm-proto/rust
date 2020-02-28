@@ -248,6 +248,12 @@ impl<V> FromBasicValue<V> for Meta<V> {
     }
 }
 
+impl<V> Default for Meta<V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Body
 
@@ -348,6 +354,8 @@ impl<V> FromBasicValue<V> for Kind {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
 /// Represents an unknown message kind.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnknownKind {
@@ -372,6 +380,8 @@ impl<'a, V> AsBasicValueRef<'a, V> for UnknownKind {
         }
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////
 
 /// Represents a defined message kind.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -469,6 +479,8 @@ impl<'a, V> AsBasicValueRef<'a, V> for KnownKind {
     }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+
 /// A custom defined message kind.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CustomKind {
@@ -480,8 +492,18 @@ pub struct CustomKind {
 
 impl CustomKind {
     /// Constructs a new custom kind.
-    pub const fn new(name: &'static str, code: u8, fields_min: usize, fields_max: Option<usize>) -> Self {
-        Self { name, code, fields_min, fields_max }
+    pub const fn new(
+        name: &'static str,
+        code: u8,
+        fields_min: usize,
+        fields_max: Option<usize>,
+    ) -> Self {
+        Self {
+            name,
+            code,
+            fields_min,
+            fields_max,
+        }
     }
 
     /// Returns the kind code.
@@ -500,27 +522,7 @@ impl CustomKind {
     }
 }
 
-impl_standard_kind!(
-    // Init
-    (Goodbye, "GOODBYE", 1, 2),
-    (Hello, "HELLO", 2, 2),
-    (Prove, "PROVE", 3, 2),
-    (Proof, "PROOF", 4, 2),
-    // Generic
-    (Error, "ERROR", 20, 5),
-    (Cancel, "CANCEL", 21, 2),
-    // RPC
-    (Call, "CALL", 40, 4),
-    (Result, "RESULT", 41, 3),
-    // PubSub
-    (Event, "EVENT", 60, 4),
-    (Publish, "PUBLISH", 61, 4),
-    (Published, "PUBLISHED", 62, 3),
-    (Subscribe, "SUBSCRIBE", 63, 3),
-    (Subscribed, "SUBSCRIBED", 64, 3),
-    (Unsubscribe, "UNSUBSCRIBE", 65, 3),
-    (Unsubscribed, "UNSUBSCRIBED", 66, 2)
-);
+///////////////////////////////////////////////////////////////////////////////
 
 impl StandardKind {
     pub fn code(self) -> u8 {
