@@ -37,7 +37,9 @@ where
     fn start(self, kind: KnownKind) -> Result<Self::FieldEncoder, MessageError<S::Error>> {
         let mut seq = self
             .inner
-            .serialize_seq(kind.field_count().1)
+            .serialize_seq(kind.field_count().1.map(|c| {
+                c + 1 // account for kind field
+            }))
             .map_err(MessageError::Codec)?;
         seq.serialize_element(&kind.code())
             .map_err(MessageError::Codec)?;

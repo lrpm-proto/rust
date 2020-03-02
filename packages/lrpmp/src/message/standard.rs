@@ -1,4 +1,4 @@
-use lrpmp_proc_macro::impl_std_messages;
+use lrpmp_macros::impl_std_messages;
 
 use super::*;
 

@@ -2,5 +2,5 @@
 members = [
     "packages/lrpmp",
     "packages/lrpmp-spec",
-    "packages/lrpmp-proc-macro",
+    "packages/lrpmp-macros",
 ]
