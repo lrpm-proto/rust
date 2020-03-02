@@ -1,0 +1,240 @@
+use std::collections::BTreeMap;
+
+/// The basic types used by LRPMP.
+#[derive(Debug, Hash, Clone, Copy, PartialEq)]
+pub enum BasicType {
+    /// A `u8` LRPMP type.
+    U8,
+    /// A `u64` LRPMP type.
+    U64,
+    /// A `str` LRPMP type.
+    Str,
+    /// A `map` LRPMP type.
+    Map,
+    /// A `val` LRPMP type.
+    Val,
+}
+
+#[derive(Debug)]
+pub enum BasicValueError {
+    UnexpectedType {
+        expected: &'static [BasicType],
+        actual: BasicType,
+    },
+}
+
+pub trait BasicValue<V, M = Map<V>> {
+    /// Returns the basic type of this basic value.
+    fn ty(&self) -> BasicType;
+
+    fn as_u8(&self) -> Option<u8>;
+
+    fn as_u64(&self) -> Option<u64>;
+
+    fn as_str(&self) -> Option<&str>;
+
+    fn as_map(&self) -> Option<&M>;
+
+    fn as_val(&self) -> Option<&V>;
+
+    fn into_string(self) -> Option<String>;
+
+    fn into_map(self) -> Option<M>;
+
+    fn into_val(self) -> Option<V>;
+}
+
+impl<'a, T, V, M> BasicValue<V, M> for &'a T
+where
+    T: BasicValue<V, M>,
+    V: Clone,
+    M: Clone,
+{
+    #[inline]
+    fn ty(&self) -> BasicType {
+        (*self).ty()
+    }
+
+    #[inline]
+    fn as_u8(&self) -> Option<u8> {
+        (*self).as_u8()
+    }
+
+    #[inline]
+    fn as_u64(&self) -> Option<u64> {
+        (*self).as_u64()
+    }
+
+    #[inline]
+    fn as_str(&self) -> Option<&str> {
+        (*self).as_str()
+    }
+
+    #[inline]
+    fn as_map(&self) -> Option<&M> {
+        (*self).as_map()
+    }
+
+    #[inline]
+    fn as_val(&self) -> Option<&V> {
+        (*self).as_val()
+    }
+
+    #[inline]
+    fn into_string(self) -> Option<String> {
+        self.as_str().map(Into::into)
+    }
+
+    #[inline]
+    fn into_map(self) -> Option<M> {
+        self.as_map().map(Clone::clone)
+    }
+
+    #[inline]
+    fn into_val(self) -> Option<V> {
+        self.as_val().map(Clone::clone)
+    }
+}
+
+macro_rules! impl_returning_none {
+    ($($fn:ident($self:ty): $as_ty:ty),*) => {
+        $(
+            #[inline]
+            fn $fn(self: $self) -> Option<$as_ty> {
+                None
+            }
+        )*
+    };
+}
+
+impl<V, M> BasicValue<V, M> for u8 {
+    #[inline]
+    fn ty(&self) -> BasicType {
+        BasicType::U8
+    }
+
+    #[inline]
+    fn as_u8(&self) -> Option<u8> {
+        Some(*self)
+    }
+
+    impl_returning_none!(
+        as_u64(&Self): u64,
+        as_str(&Self): &str,
+        as_map(&Self): &M,
+        as_val(&Self): &V,
+        into_string(Self): String,
+        into_map(Self): M,
+        into_val(Self): V
+    );
+}
+
+impl<V, M> BasicValue<V, M> for u64 {
+    #[inline]
+    fn ty(&self) -> BasicType {
+        BasicType::U64
+    }
+
+    #[inline]
+    fn as_u64(&self) -> Option<u64> {
+        Some(*self)
+    }
+
+    impl_returning_none!(
+        as_u8(&Self): u8,
+        as_str(&Self): &str,
+        as_map(&Self): &M,
+        as_val(&Self): &V,
+        into_string(Self): String,
+        into_map(Self): M,
+        into_val(Self): V
+    );
+}
+
+impl<V, M> BasicValue<V, M> for String {
+    #[inline]
+    fn ty(&self) -> BasicType {
+        BasicType::Str
+    }
+
+    #[inline]
+    fn as_str(&self) -> Option<&str> {
+        Some(self.as_ref())
+    }
+
+    #[inline]
+    fn into_string(self) -> Option<String> {
+        Some(self)
+    }
+
+    impl_returning_none!(
+        as_u8(&Self): u8,
+        as_u64(&Self): u64,
+        as_map(&Self): &M,
+        as_val(&Self): &V,
+        into_map(Self): M,
+        into_val(Self): V
+    );
+}
+
+pub type Map<V> = BTreeMap<String, V>;
+
+impl<V> BasicValue<V, Map<V>> for Map<V> {
+    #[inline]
+    fn ty(&self) -> BasicType {
+        BasicType::Map
+    }
+
+    #[inline]
+    fn as_map(&self) -> Option<&Map<V>> {
+        Some(self)
+    }
+
+    #[inline]
+    fn into_map(self) -> Option<Map<V>> {
+        Some(self)
+    }
+
+    impl_returning_none!(
+        as_u8(&Self): u8,
+        as_u64(&Self): u64,
+        as_str(&Self): &str,
+        as_val(&Self): &V,
+        into_string(Self): String,
+        into_val(Self): V
+    );
+}
+
+// pub trait FromBasicValue<V, B: BasicValue<V>>: Sized {
+//     type Error;
+
+//     fn from_basic_value(value: B) -> Result<Self, Self::Error>;
+// }
+
+// pub struct Val<V>(pub V);
+
+// impl<V, M> BasicValue<V, M> for Val<V> {
+//     #[inline]
+//     fn ty(&self) -> BasicType {
+//         BasicType::Str
+//     }
+
+//     #[inline]
+//     fn as_val(&self) -> Option<&V> {
+//         Some(&self.0)
+//     }
+
+//     #[inline]
+//     fn into_val(self) -> Option<V> {
+//         Some(self.0)
+//     }
+
+//     impl_returning_none!(
+//         as_u8(&Self): u8,
+//         as_u64(&Self): u64,
+//         as_str(&Self): &str,
+//         as_map(&Self): &M,
+//         into_string(Self): String,
+//         into_map(Self): M
+//     );
+// }

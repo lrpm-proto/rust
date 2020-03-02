@@ -6,15 +6,7 @@ edition = "2018"
 
 [dependencies]
 toml = "0.5"
+semver = { version = "0.9", features = ["serde"] }
 serde = { version = "~1", features = ["derive"] }
 error-chain = "0.12"
 Inflector = "0.11"
-
-# Codegen
-syn = { version = "~1", optional = true }
-quote = { version = "~1", optional = true }
-proc-macro2 = { version = "~1", optional = true }
-
-[features]
-default = ["codegen"]
-codegen = ["syn", "quote", "proc-macro2"]

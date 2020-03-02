@@ -1,5 +1,6 @@
 [workspace]
 members = [
-    #"packages/lrpmp",
-    "packages/lrpmp-spec"
+    "packages/lrpmp",
+    "packages/lrpmp-spec",
+    "packages/lrpmp-proc-macro",
 ]

@@ -1,8 +1,7 @@
-#[macro_use]
-mod macros;
 mod encdec;
 mod error;
 mod io;
+mod standard;
 
 pub mod basic;
 pub mod special;
@@ -13,6 +12,7 @@ use self::special::*;
 pub use self::encdec::*;
 pub use self::error::*;
 pub use self::io::*;
+pub use self::standard::*;
 
 pub trait Message<V>: Sized {
     /// Returns the message kind.
@@ -96,4 +96,3 @@ impl<V> Message<V> for GenericMessage<V> {
     //     unimplemented!()
     // }
 }
-

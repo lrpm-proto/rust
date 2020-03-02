@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use super::basic::*;
 
+pub use super::standard::StandardKind;
+
 ///////////////////////////////////////////////////////////////////////////////
 // Id
 

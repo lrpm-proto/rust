@@ -1,18 +1,16 @@
-#[cfg(any(codegen, test))]
-pub mod codegen;
+mod message;
+
+pub mod naming;
 
 use std::str::FromStr;
 
-use inflector::cases::{pascalcase::to_pascal_case, snakecase::to_snake_case};
+use semver::Version;
 use serde::Deserialize;
 
 use crate::errors::Error;
+use crate::naming::{default_naming, NamingConvention};
 
-const SPEC_STR: &str = include_str!("../spec/src/definitions.toml");
-
-fn renamed_default() -> bool {
-    false
-}
+pub use self::message::*;
 
 pub mod errors {
     use error_chain::error_chain;
@@ -25,28 +23,39 @@ pub mod errors {
     }
 }
 
+const SPEC_STR: &str = include_str!("../spec/src/definitions.toml");
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Spec {
-    pub messages: Vec<MsgDef>,
-    #[serde(default = "renamed_default")]
-    renamed: bool,
+    version: Version,
+    messages: Vec<MsgDef>,
+    #[serde(default = "default_naming", skip)]
+    naming: &'static NamingConvention,
 }
 
 impl Spec {
+    pub fn version(&self) -> &Version {
+        &self.version
+    }
+
+    pub fn message_iter(&self) -> impl ExactSizeIterator<Item = &MsgDef> {
+        self.messages.iter()
+    }
+
     pub fn validate(&self) -> Result<(), Error> {
         // TODO
         Ok(())
     }
 
-    /// Recursively renames names and types for use in rust codegen.
-    pub fn rust_rename(mut self) -> Self {
-        if self.renamed {
+    /// Recursively renames names and types given a naming convention.
+    pub fn rename(mut self, naming: &'static NamingConvention) -> Self {
+        if self.naming == naming {
             return self;
         }
         for msg in self.messages.iter_mut() {
-            msg.rust_rename();
+            msg.rename(naming);
         }
-        self.renamed = true;
+        self.naming = naming;
         self
     }
 }
@@ -62,54 +71,6 @@ impl FromStr for Spec {
 impl Default for Spec {
     fn default() -> Self {
         SPEC_STR.parse().expect("invalid spec string")
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct MsgDef {
-    pub code: u8,
-    pub name: String,
-    #[serde(rename = "type")]
-    pub ty: String,
-    pub stages: Vec<String>,
-    pub desc: String,
-    pub fields: Vec<MsgFieldDef>,
-    #[serde(default = "renamed_default")]
-    renamed: bool,
-}
-
-impl MsgDef {
-    pub(crate) fn rust_rename(&mut self) {
-        if self.renamed {
-            return;
-        }
-        self.name = to_pascal_case(self.name.as_ref());
-        self.ty = to_snake_case(self.ty.as_ref());
-        self.renamed = true;
-        for field in self.fields.iter_mut() {
-            field.rust_rename();
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct MsgFieldDef {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub ty: String,
-    pub desc: String,
-    #[serde(default = "renamed_default")]
-    renamed: bool,
-}
-
-impl MsgFieldDef {
-    pub(crate) fn rust_rename(&mut self) {
-        if self.renamed {
-            return;
-        }
-        self.renamed = true;
-        self.name = to_snake_case(self.name.as_ref());
-        self.ty = to_pascal_case(self.ty.as_ref());
     }
 }
 
