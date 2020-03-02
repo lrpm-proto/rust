@@ -1,4 +1,4 @@
-use super::{AsBasicValueRef, BasicValue, FromBasicValue, KnownKind, MessageError};
+use super::{BasicValue, FromBasicValue, KnownKind, MessageError}; //AsBasicValueRef, BasicValue, FromBasicValue,
 
 pub trait MessageEncoder<V> {
     type Ok;
@@ -18,19 +18,18 @@ pub trait MessageFieldEncoder<V> {
         value: F,
     ) -> Result<(), MessageError<Self::Error>>
     where
-        F: Into<BasicValue<V>>,
+        F: BasicValue<V>,
     {
-        self.encode_field_ref(name, &value.into())
+        self.encode_field_ref(name, &value)
     }
 
-    fn encode_field_ref<'f, F>(
+    fn encode_field_ref<F>(
         &mut self,
         name: Option<&'static str>,
-        value: &'f F,
+        value: &F,
     ) -> Result<(), MessageError<Self::Error>>
     where
-        V: 'f,
-        F: AsBasicValueRef<'f, V>;
+        F: BasicValue<V>;
 
     fn end(self) -> Result<Self::Ok, MessageError<Self::Error>>;
 }

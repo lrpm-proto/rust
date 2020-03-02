@@ -22,30 +22,30 @@ impl Id {
     }
 }
 
-impl<V> From<Id> for BasicValue<V> {
-    fn from(value: Id) -> Self {
-        Self::U64(value.0)
+impl<V, M> BasicValue<V, M> for Id {
+    fn ty(&self) -> BasicType {
+        BasicType::U64
     }
-}
 
-impl<'a, V> AsBasicValueRef<'a, V> for Id {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        BasicValueRef::U64(self.0)
+    fn as_u64(&self) -> u64 {
+        self.0
     }
+
+    impl_invalid_basic_types!(<V, M>, U8, Str, Map, Val);
 }
 
 impl<V> FromBasicValue<V> for Id {
-    type Error = UnexpectedBasicTypeError;
+    type Error = UnexpectedType;
 
     fn expected_types() -> &'static [BasicType] {
-        &[BasicType::U64]
+        &[BasicType::Map]
     }
 
-    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error> {
-        match value {
-            BasicValue::U64(v) => Ok(Self::new(v)),
-            other => Err(Self::unexpected_error(other)),
-        }
+    fn from_basic_value<B>(value: B) -> Result<Self, Self::Error>
+    where
+        B: BasicValue<V>,
+    {
+        Ok(Self(value.try_as_u64()?))
     }
 }
 
@@ -171,28 +171,38 @@ impl TryFrom<ByteString> for Uri {
     }
 }
 
-impl<V> From<Uri> for BasicValue<V> {
-    fn from(value: Uri) -> Self {
-        Self::Str(value.contents)
-    }
-}
-
-impl<'a, V> AsBasicValueRef<'a, V> for Uri {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        BasicValueRef::Str(self.as_str())
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseBasicUriError {
     Parse(ParseUriError),
-    UnexpectedBasicType(UnexpectedBasicTypeError),
+    UnexpectedType(UnexpectedType),
 }
 
-impl From<UnexpectedBasicTypeError> for ParseBasicUriError {
-    fn from(err: UnexpectedBasicTypeError) -> Self {
-        Self::UnexpectedBasicType(err)
+impl From<ParseUriError> for ParseBasicUriError {
+    fn from(err: ParseUriError) -> Self {
+        Self::Parse(err)
     }
+}
+
+impl From<UnexpectedType> for ParseBasicUriError {
+    fn from(err: UnexpectedType) -> Self {
+        Self::UnexpectedType(err)
+    }
+}
+
+impl<V, M> BasicValue<V, M> for Uri {
+    fn ty(&self) -> BasicType {
+        BasicType::Str
+    }
+
+    fn as_str(&self) -> &str {
+        self.as_str()
+    }
+
+    fn into_string(self) -> ByteString {
+        self.contents
+    }
+
+    impl_invalid_basic_types!(<V, M>, U8, U64, Map, Val);
 }
 
 impl<V> FromBasicValue<V> for Uri {
@@ -202,11 +212,11 @@ impl<V> FromBasicValue<V> for Uri {
         &[BasicType::Str]
     }
 
-    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error> {
-        match value {
-            BasicValue::Str(v) => Self::try_from(v).map_err(ParseBasicUriError::Parse),
-            other => Err(Self::unexpected_error(other)),
-        }
+    fn from_basic_value<B>(value: B) -> Result<Self, Self::Error>
+    where
+        B: BasicValue<V>,
+    {
+        Ok(Self::try_from(value.try_into_string()?)?)
     }
 }
 
@@ -223,30 +233,34 @@ impl<V> Meta<V> {
     }
 }
 
-impl<V> From<Meta<V>> for BasicValue<V> {
-    fn from(value: Meta<V>) -> Self {
-        value.0.into()
+impl<V> BasicValue<V> for Meta<V> {
+    fn ty(&self) -> BasicType {
+        BasicType::Str
     }
-}
 
-impl<'a, V> AsBasicValueRef<'a, V> for Meta<V> {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        BasicValueRef::Map(&self.0)
+    fn as_map(&self) -> &Map<V> {
+        &self.0
     }
+
+    fn into_map(self) -> Map<V> {
+        self.0
+    }
+
+    impl_invalid_basic_types!(<V, Map<V>>, U8, U64, Str, Val);
 }
 
 impl<V> FromBasicValue<V> for Meta<V> {
-    type Error = UnexpectedBasicTypeError;
+    type Error = UnexpectedType;
 
     fn expected_types() -> &'static [BasicType] {
         &[BasicType::Map]
     }
 
-    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error> {
-        match value {
-            BasicValue::Map(v) => Ok(Self(v)),
-            other => Err(Self::unexpected_error(other)),
-        }
+    fn from_basic_value<B>(value: B) -> Result<Self, Self::Error>
+    where
+        B: BasicValue<V>,
+    {
+        Ok(Self(value.try_into_map()?))
     }
 }
 
@@ -269,30 +283,34 @@ impl<V> Body<V> {
     }
 }
 
-impl<V> From<Body<V>> for BasicValue<V> {
-    fn from(value: Body<V>) -> Self {
-        Self::Val(value.0)
+impl<V, M> BasicValue<V, M> for Body<V> {
+    fn ty(&self) -> BasicType {
+        BasicType::Str
     }
-}
 
-impl<'a, V> AsBasicValueRef<'a, V> for Body<V> {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        BasicValueRef::Val(&self.0)
+    fn as_val(&self) -> &V {
+        &self.0
     }
+
+    fn into_val(self) -> V {
+        self.0
+    }
+
+    impl_invalid_basic_types!(<V, M>, U8, U64, Str, Map);
 }
 
 impl<V> FromBasicValue<V> for Body<V> {
-    type Error = UnexpectedBasicTypeError;
+    type Error = UnexpectedType;
 
     fn expected_types() -> &'static [BasicType] {
         &[BasicType::Val]
     }
 
-    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error> {
-        match value {
-            BasicValue::Val(v) => Ok(Self(v)),
-            other => Err(Self::unexpected_error(other)),
-        }
+    fn from_basic_value<B>(value: B) -> Result<Self, Self::Error>
+    where
+        B: BasicValue<V>,
+    {
+        Ok(Self(value.try_into_val()?))
     }
 }
 
@@ -322,36 +340,58 @@ impl Kind {
     }
 }
 
-impl<V> From<Kind> for BasicValue<V> {
-    fn from(value: Kind) -> Self {
-        match value {
-            Kind::Known(k) => k.into(),
-            Kind::Unknown(k) => k.into(),
-        }
-    }
-}
-
-impl<'a, V> AsBasicValueRef<'a, V> for Kind {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
+impl<V, M> BasicValue<V, M> for Kind {
+    fn ty(&self) -> BasicType {
         match self {
-            Self::Known(k) => k.as_basic_value_ref(),
-            Self::Unknown(k) => k.as_basic_value_ref(),
+            Kind::Known(_) => BasicType::U8,
+            Kind::Unknown(UnknownKind::Code(_)) => BasicType::U8,
+            Kind::Unknown(UnknownKind::Name(_)) => BasicType::Str,
         }
     }
+
+    fn as_u8(&self) -> u8 {
+        match self {
+            Kind::Known(k) => k.code(),
+            Kind::Unknown(UnknownKind::Code(c)) => *c,
+            _ => expected_type::<Self, V, M>(&self, BasicType::U8),
+        }
+    }
+
+    fn as_str(&self) -> &str {
+        match self {
+            Kind::Unknown(UnknownKind::Name(n)) => n.as_ref(),
+            _ => expected_type::<Self, V, M>(&self, BasicType::Str),
+        }
+    }
+
+    fn into_string(self) -> ByteString {
+        match self {
+            Kind::Unknown(UnknownKind::Name(n)) => n,
+            _ => expected_type::<Self, V, M>(&self, BasicType::Str),
+        }
+    }
+
+    impl_invalid_basic_types!(<V, M>, U64, Map, Val);
 }
 
 impl<V> FromBasicValue<V> for Kind {
-    type Error = UnexpectedBasicTypeError;
+    type Error = UnexpectedType;
 
     fn expected_types() -> &'static [BasicType] {
         &[BasicType::U8, BasicType::Str]
     }
 
-    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error> {
-        match value {
-            BasicValue::U8(v) => Ok(Self::from_code(v)),
-            BasicValue::Str(v) => Ok(Self::from_name(v)),
-            other => Err(Self::unexpected_error(other)),
+    fn from_basic_value<B>(value: B) -> Result<Self, Self::Error>
+    where
+        B: BasicValue<V>,
+    {
+        match value.ty() {
+            BasicType::U8 => Ok(Self::from_code(value.as_u8())),
+            BasicType::Str => Ok(Self::from_name(value.into_string())),
+            other_ty => Err(UnexpectedType {
+                expected: <Self as FromBasicValue<V>>::expected_types(),
+                actual: other_ty,
+            }),
         }
     }
 }
@@ -363,24 +403,6 @@ impl<V> FromBasicValue<V> for Kind {
 pub enum UnknownKind {
     Name(ByteString),
     Code(u8),
-}
-
-impl<V> From<UnknownKind> for BasicValue<V> {
-    fn from(value: UnknownKind) -> Self {
-        match value {
-            UnknownKind::Name(s) => Self::Str(s),
-            UnknownKind::Code(c) => Self::U8(c),
-        }
-    }
-}
-
-impl<'a, V> AsBasicValueRef<'a, V> for UnknownKind {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        match self {
-            Self::Name(s) => BasicValueRef::Str(s.as_ref()),
-            Self::Code(c) => BasicValueRef::U8(*c),
-        }
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -431,53 +453,12 @@ impl From<StandardKind> for KnownKind {
 
 pub enum ParseKnownKindError {
     UnknownKind(UnknownKind),
-    UnexpectedType(UnexpectedBasicTypeError),
+    UnexpectedType(UnexpectedType),
 }
 
-impl From<UnexpectedBasicTypeError> for ParseKnownKindError {
-    fn from(err: UnexpectedBasicTypeError) -> Self {
+impl From<UnexpectedType> for ParseKnownKindError {
+    fn from(err: UnexpectedType) -> Self {
         Self::UnexpectedType(err)
-    }
-}
-
-impl<V> FromBasicValue<V> for KnownKind {
-    type Error = ParseKnownKindError;
-
-    fn expected_types() -> &'static [BasicType] {
-        &[BasicType::U8, BasicType::Str]
-    }
-
-    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error> {
-        let unknown_kind = match value {
-            BasicValue::U8(v) => match Self::from_code(v) {
-                Some(v) => return Ok(v),
-                None => UnknownKind::Code(v),
-            },
-            BasicValue::Str(v) => match Self::from_name(v.as_ref()) {
-                Some(v) => return Ok(v),
-                None => UnknownKind::Name(v),
-            },
-            other => return Err(Self::unexpected_error(other)),
-        };
-        Err(ParseKnownKindError::UnknownKind(unknown_kind))
-    }
-}
-
-impl<V> From<KnownKind> for BasicValue<V> {
-    fn from(value: KnownKind) -> Self {
-        match value {
-            KnownKind::Standard(k) => k.into(),
-            KnownKind::Custom(k) => BasicValue::U8(k.code()),
-        }
-    }
-}
-
-impl<'a, V> AsBasicValueRef<'a, V> for KnownKind {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        match self {
-            Self::Standard(k) => k.as_basic_value_ref(),
-            Self::Custom(k) => BasicValueRef::U8(k.code()),
-        }
     }
 }
 
@@ -535,17 +516,5 @@ impl StandardKind {
 impl From<StandardKind> for u8 {
     fn from(kind: StandardKind) -> u8 {
         kind as u8
-    }
-}
-
-impl<V> From<StandardKind> for BasicValue<V> {
-    fn from(value: StandardKind) -> Self {
-        BasicValue::U8(value.code())
-    }
-}
-
-impl<'a, V> AsBasicValueRef<'a, V> for StandardKind {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        BasicValueRef::U8(self.code())
     }
 }

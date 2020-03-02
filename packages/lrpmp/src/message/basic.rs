@@ -1,189 +1,305 @@
-use std::collections::BTreeMap;
-use std::convert::Infallible;
-use std::iter::FromIterator;
-
 use bytestring::ByteString;
-use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+pub(crate) fn expected_type<B, V, M>(got: &B, expected: BasicType) -> !
+where
+    B: BasicValue<V, M>,
+{
+    panic!("expected {:?}, got {:?}", expected, got.ty())
+}
 
 /// Error produced from a invalid basic type conversion.
 #[derive(Debug, Clone, PartialEq)]
-pub struct UnexpectedBasicTypeError {
+pub struct UnexpectedType {
     pub expected: &'static [BasicType],
     pub actual: BasicType,
 }
 
 /// The basic types used by LRPMP.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Hash, Clone, Copy, PartialEq)]
 pub enum BasicType {
+    /// A `u8` LRPMP type.
     U8,
+    /// A `u64` LRPMP type.
     U64,
+    /// A `str` LRPMP type.
     Str,
+    /// A `map` LRPMP type.
     Map,
+    /// A `val` LRPMP type.
     Val,
 }
 
-/// The basic types along with a respective value used by LRPMP.
-#[derive(Debug, Clone)]
-pub enum BasicValue<V> {
-    U8(u8),
-    U64(u64),
-    Str(ByteString),
-    Map(Map<V>),
-    Val(V),
+pub trait BasicValue<V, M = Map<V>> {
+    /// Returns the basic type of this basic value.
+    fn ty(&self) -> BasicType;
+
+    fn as_u8(&self) -> u8;
+
+    fn as_u64(&self) -> u64;
+
+    fn as_str(&self) -> &str;
+
+    fn as_map(&self) -> &M;
+
+    fn as_val(&self) -> &V;
+
+    fn into_string(self) -> ByteString;
+
+    fn into_map(self) -> M;
+
+    fn into_val(self) -> V;
 }
 
-impl<V> BasicValue<V> {
-    /// Returns the basic type of the value.
-    pub fn ty(&self) -> BasicType {
-        match self {
-            Self::U8(_) => BasicType::U8,
-            Self::U64(_) => BasicType::U64,
-            Self::Str(_) => BasicType::Str,
-            Self::Map(_) => BasicType::Map,
-            Self::Val(_) => BasicType::Val,
-        }
-    }
-}
-
-/// The basic types along with a reference to their respective
-/// value used by LRPMP.
-#[derive(Debug, Clone)]
-pub enum BasicValueRef<'a, V> {
-    U8(u8),
-    U64(u64),
-    Str(&'a str),
-    Map(&'a Map<V>),
-    Val(&'a V),
-}
-
-impl<'a, V> BasicValueRef<'a, V> {
-    /// Returns the basic type of the value.
-    pub fn ty(&self) -> BasicType {
-        match self {
-            Self::U8(_) => BasicType::U8,
-            Self::U64(_) => BasicType::U64,
-            Self::Str(_) => BasicType::Str,
-            Self::Map(_) => BasicType::Map,
-            Self::Val(_) => BasicType::Val,
-        }
-    }
-}
-
-/// Helper to convert special types to their basic representation.
-///
-/// Converting to a basic type is always a non fail operation.
-pub trait AsBasicValueRef<'a, V> {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V>;
-}
-
-impl<'a, T, V> AsBasicValueRef<'a, V> for &'a T
+impl<'a, T, V, M> BasicValue<V, M> for &'a T
 where
-    T: AsBasicValueRef<'a, V>,
+    T: BasicValue<V, M>,
+    V: Clone,
+    M: Clone,
 {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        (*self).as_basic_value_ref()
+    #[inline]
+    fn ty(&self) -> BasicType {
+        (*self).ty()
+    }
+
+    #[inline]
+    fn as_u8(&self) -> u8 {
+        (*self).as_u8()
+    }
+
+    #[inline]
+    fn as_u64(&self) -> u64 {
+        (*self).as_u64()
+    }
+
+    #[inline]
+    fn as_str(&self) -> &str {
+        (*self).as_str()
+    }
+
+    #[inline]
+    fn as_map(&self) -> &M {
+        (*self).as_map()
+    }
+
+    #[inline]
+    fn as_val(&self) -> &V {
+        (*self).as_val()
+    }
+
+    #[inline]
+    fn into_string(self) -> ByteString {
+        self.as_str().into()
+    }
+
+    #[inline]
+    fn into_map(self) -> M {
+        self.as_map().clone()
+    }
+
+    #[inline]
+    fn into_val(self) -> V {
+        self.as_val().clone()
     }
 }
 
-impl<'a, V> AsBasicValueRef<'a, V> for BasicValue<V> {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        match self {
-            Self::U8(v) => BasicValueRef::U8(*v),
-            Self::U64(v) => BasicValueRef::U64(*v),
-            Self::Str(s) => BasicValueRef::Str(s.as_ref()),
-            Self::Map(m) => BasicValueRef::Map(&m),
-            Self::Val(v) => BasicValueRef::Val(&v),
+pub trait BasicValueExt<V, M>: BasicValue<V, M> + Sized {
+    #[inline]
+    fn expect_types(&self, expected: &'static [BasicType]) -> Result<(), UnexpectedType> {
+        if expected.contains(&self.ty()) {
+            Ok(())
+        } else {
+            Err(UnexpectedType {
+                actual: self.ty(),
+                expected,
+            })
         }
     }
+
+    #[inline]
+    fn try_as_u8(&self) -> Result<u8, UnexpectedType> {
+        self.expect_types(&[BasicType::U8])?;
+        Ok(self.as_u8())
+    }
+
+    #[inline]
+    fn try_as_u64(&self) -> Result<u64, UnexpectedType> {
+        self.expect_types(&[BasicType::U64])?;
+        Ok(self.as_u64())
+    }
+
+    #[inline]
+    fn try_as_str(&self) -> Result<&str, UnexpectedType> {
+        self.expect_types(&[BasicType::Str])?;
+        Ok(self.as_str())
+    }
+
+    #[inline]
+    fn try_as_map(&self) -> Result<&M, UnexpectedType> {
+        self.expect_types(&[BasicType::Map])?;
+        Ok(self.as_map())
+    }
+
+    #[inline]
+    fn try_as_val(&self) -> Result<&V, UnexpectedType> {
+        self.expect_types(&[BasicType::Val])?;
+        Ok(self.as_val())
+    }
+
+    #[inline]
+    fn try_into_string(self) -> Result<ByteString, UnexpectedType> {
+        self.expect_types(&[BasicType::Str])?;
+        Ok(self.into_string())
+    }
+
+    #[inline]
+    fn try_into_map(self) -> Result<M, UnexpectedType> {
+        self.expect_types(&[BasicType::Map])?;
+        Ok(self.into_map())
+    }
+
+    #[inline]
+    fn try_into_val(self) -> Result<V, UnexpectedType> {
+        self.expect_types(&[BasicType::Val])?;
+        Ok(self.into_val())
+    }
+}
+
+impl<T, V, M> BasicValueExt<V, M> for T where T: BasicValue<V, M> {}
+
+macro_rules! impl_invalid_basic_types {
+    (<$V:ty, $M:ty>, $($ty:ident),*) => {
+        $(
+            impl_invalid_basic_types!($ty, $V, $M);
+        )*
+    };
+    (U8, $V:ty, $M:ty) => {
+        #[inline]
+        fn as_u8(&self) -> u8 {
+            expected_type::<Self, $V, $M>(&self, BasicType::U8)
+        }
+    };
+    (U64, $V:ty, $M:ty) => {
+        #[inline]
+        fn as_u64(&self) -> u64 {
+            expected_type::<Self, $V, $M>(&self, BasicType::U64)
+        }
+    };
+    (Str, $V:ty, $M:ty) => {
+        #[inline]
+        fn as_str(&self) -> &str {
+            expected_type::<Self, $V, $M>(&self, BasicType::Str)
+        }
+
+        #[inline]
+        fn into_string(self) -> ByteString {
+            expected_type::<Self, $V, $M>(&self, BasicType::Str)
+        }
+    };
+    (Map, $V:ty, $M:ty) => {
+        #[inline]
+        fn as_map(&self) -> &M {
+            expected_type::<Self, $V, $M>(&self, BasicType::Map)
+        }
+
+        #[inline]
+        fn into_map(self) -> M {
+            expected_type::<Self, $V, $M>(&self, BasicType::Map)
+        }
+    };
+    (Val, $V:ty, $M:ty) => {
+        #[inline]
+        fn as_val(&self) -> &V {
+            expected_type::<Self, $V, $M>(&self, BasicType::Val)
+        }
+
+        #[inline]
+        fn into_val(self) -> V {
+            expected_type::<Self, $V, $M>(&self, BasicType::Val)
+        }
+    };
+}
+
+impl<V, M> BasicValue<V, M> for u8 {
+    #[inline]
+    fn ty(&self) -> BasicType {
+        BasicType::U8
+    }
+
+    #[inline]
+    fn as_u8(&self) -> u8 {
+        *self
+    }
+
+    impl_invalid_basic_types!(<V, M>, U64, Str, Map, Val);
+}
+
+impl<V, M> BasicValue<V, M> for u64 {
+    #[inline]
+    fn ty(&self) -> BasicType {
+        BasicType::U64
+    }
+
+    #[inline]
+    fn as_u64(&self) -> u64 {
+        *self
+    }
+
+    impl_invalid_basic_types!(<V, M>, U8, Str, Map, Val);
+}
+
+impl<V, M> BasicValue<V, M> for ByteString {
+    #[inline]
+    fn ty(&self) -> BasicType {
+        BasicType::Str
+    }
+
+    #[inline]
+    fn as_str(&self) -> &str {
+        self.as_ref()
+    }
+
+    #[inline]
+    fn into_string(self) -> ByteString {
+        self
+    }
+
+    impl_invalid_basic_types!(<V, M>, U8, U64, Map, Val);
+}
+
+pub type Map<V> = BTreeMap<ByteString, V>;
+
+impl<V> BasicValue<V, Map<V>> for Map<V> {
+    #[inline]
+    fn ty(&self) -> BasicType {
+        BasicType::Map
+    }
+
+    #[inline]
+    fn as_map(&self) -> &Map<V> {
+        self
+    }
+
+    #[inline]
+    fn into_map(self) -> Map<V> {
+        self
+    }
+
+    impl_invalid_basic_types!(<V, Map<V>>, U8, U64, Str, Val);
+}
+
+pub trait IntoBasicValue<V>: Sized {
+    type BasicValue: BasicValue<V>;
+
+    fn into_basic_value(self) -> Self::BasicValue;
 }
 
 pub trait FromBasicValue<V>: Sized {
-    type Error;
+    type Error: From<UnexpectedType>;
 
     fn expected_types() -> &'static [BasicType];
 
-    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error>;
-
-    fn unexpected_error(unexpected: BasicValue<V>) -> Self::Error
+    fn from_basic_value<B>(value: B) -> Result<Self, Self::Error>
     where
-        Self::Error: From<UnexpectedBasicTypeError>,
-    {
-        UnexpectedBasicTypeError {
-            expected: Self::expected_types(),
-            actual: unexpected.ty(),
-        }
-        .into()
-    }
-}
-
-impl<V> FromBasicValue<V> for BasicValue<V> {
-    type Error = Infallible;
-
-    fn expected_types() -> &'static [BasicType] {
-        &[
-            BasicType::U8,
-            BasicType::U64,
-            BasicType::Str,
-            BasicType::Map,
-            BasicType::Val,
-        ]
-    }
-
-    fn from_basic_value(value: BasicValue<V>) -> Result<Self, Self::Error> {
-        Ok(value)
-    }
-}
-
-/// A `Str` key to `Val` structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Map<V>(BTreeMap<String, V>);
-
-impl<V> Map<V> {
-    pub fn new() -> Self {
-        Self(Default::default())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (&str, &V)> {
-        self.0.iter().map(|(k, v)| (k.as_str(), v))
-    }
-}
-
-impl<V> From<Map<V>> for BasicValue<V> {
-    fn from(value: Map<V>) -> Self {
-        BasicValue::Map(value)
-    }
-}
-
-impl<'a, V> AsBasicValueRef<'a, V> for Map<V> {
-    fn as_basic_value_ref(&'a self) -> BasicValueRef<'a, V> {
-        BasicValueRef::Map(&self)
-    }
-}
-
-impl<K, V> FromIterator<(K, V)> for Map<V>
-where
-    K: Into<String>,
-{
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = (K, V)>,
-    {
-        let iter = iter.into_iter().map(|(k, v)| (k.into(), v));
-        let map = BTreeMap::from_iter(iter);
-        Self(map)
-    }
-}
-
-impl<V> Default for Map<V> {
-    fn default() -> Self {
-        Self::new()
-    }
+        B: BasicValue<V>;
 }

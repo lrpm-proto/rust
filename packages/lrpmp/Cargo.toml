@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 bytes = "0.5"
-bytestring = "0.1"
+bytestring = { git = "https://github.com/avitex/rust-bytestring", features = ["serde"] }
 serde = { version = "~1", features = ["derive"] }
 serde_json = "~1"
 serde_cbor = "~0.11"
