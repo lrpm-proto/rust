@@ -353,21 +353,21 @@ impl<V, M> BasicValue<V, M> for Kind {
         match self {
             Kind::Known(k) => k.code(),
             Kind::Unknown(UnknownKind::Code(c)) => *c,
-            _ => expected_type::<Self, V, M>(&self, BasicType::U8),
+            _ => panic_with_expected_type::<Self, V, M>(&self, BasicType::U8),
         }
     }
 
     fn as_str(&self) -> &str {
         match self {
             Kind::Unknown(UnknownKind::Name(n)) => n.as_ref(),
-            _ => expected_type::<Self, V, M>(&self, BasicType::Str),
+            _ => panic_with_expected_type::<Self, V, M>(&self, BasicType::Str),
         }
     }
 
     fn into_string(self) -> ByteString {
         match self {
             Kind::Unknown(UnknownKind::Name(n)) => n,
-            _ => expected_type::<Self, V, M>(&self, BasicType::Str),
+            _ => panic_with_expected_type::<Self, V, M>(&self, BasicType::Str),
         }
     }
 

@@ -1,7 +1,7 @@
 use bytestring::ByteString;
 use std::collections::BTreeMap;
 
-pub(crate) fn expected_type<B, V, M>(got: &B, expected: BasicType) -> !
+pub(crate) fn panic_with_expected_type<B, V, M>(got: &B, expected: BasicType) -> !
 where
     B: BasicValue<V, M>,
 {
@@ -176,46 +176,46 @@ macro_rules! impl_invalid_basic_types {
     (U8, $V:ty, $M:ty) => {
         #[inline]
         fn as_u8(&self) -> u8 {
-            expected_type::<Self, $V, $M>(&self, BasicType::U8)
+            panic_with_expected_type::<Self, $V, $M>(&self, BasicType::U8)
         }
     };
     (U64, $V:ty, $M:ty) => {
         #[inline]
         fn as_u64(&self) -> u64 {
-            expected_type::<Self, $V, $M>(&self, BasicType::U64)
+            panic_with_expected_type::<Self, $V, $M>(&self, BasicType::U64)
         }
     };
     (Str, $V:ty, $M:ty) => {
         #[inline]
         fn as_str(&self) -> &str {
-            expected_type::<Self, $V, $M>(&self, BasicType::Str)
+            panic_with_expected_type::<Self, $V, $M>(&self, BasicType::Str)
         }
 
         #[inline]
         fn into_string(self) -> ByteString {
-            expected_type::<Self, $V, $M>(&self, BasicType::Str)
+            panic_with_expected_type::<Self, $V, $M>(&self, BasicType::Str)
         }
     };
     (Map, $V:ty, $M:ty) => {
         #[inline]
         fn as_map(&self) -> &M {
-            expected_type::<Self, $V, $M>(&self, BasicType::Map)
+            panic_with_expected_type::<Self, $V, $M>(&self, BasicType::Map)
         }
 
         #[inline]
         fn into_map(self) -> M {
-            expected_type::<Self, $V, $M>(&self, BasicType::Map)
+            panic_with_expected_type::<Self, $V, $M>(&self, BasicType::Map)
         }
     };
     (Val, $V:ty, $M:ty) => {
         #[inline]
         fn as_val(&self) -> &V {
-            expected_type::<Self, $V, $M>(&self, BasicType::Val)
+            panic_with_expected_type::<Self, $V, $M>(&self, BasicType::Val)
         }
 
         #[inline]
         fn into_val(self) -> V {
-            expected_type::<Self, $V, $M>(&self, BasicType::Val)
+            panic_with_expected_type::<Self, $V, $M>(&self, BasicType::Val)
         }
     };
 }
