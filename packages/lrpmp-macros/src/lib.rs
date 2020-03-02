@@ -1,15 +1,27 @@
 extern crate proc_macro;
 
+use std::path::{Path, PathBuf};
+use std::{env, fs};
+
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::Ident;
+use syn::{parse_macro_input, Ident, LitStr};
 
 use lrpmp_spec::naming::RUST_NAMING_CONVENTION;
 use lrpmp_spec::{MsgDef, Spec};
 
 #[proc_macro]
-pub fn impl_std_messages(_: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let spec = Spec::default().rename(RUST_NAMING_CONVENTION);
+pub fn impl_std_messages(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let spec_path = parse_macro_input!(tokens as Option<LitStr>).map(|lit_str| {
+        let root_path = env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
+        let root_path = Path::new(root_path.as_str());
+        root_path
+            .join(lit_str.value())
+            .canonicalize()
+            .expect("failed to resolve spec path")
+    });
+    let spec = get_spec(spec_path);
+
     let mut out = TokenStream::new();
 
     for msg in spec.message_iter() {
@@ -18,6 +30,20 @@ pub fn impl_std_messages(_: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
     out.extend(gen_std_kind_and_message(&spec));
     out.into()
+}
+
+fn get_spec(spec_path: Option<PathBuf>) -> Spec {
+    let spec = if let Some(path) = spec_path {
+        match fs::read_to_string(&path) {
+            Ok(s) => s.parse().expect("failed to parse spec"),
+            Err(e) => panic!("failed to load spec {:?} ({:?})", path, e),
+        }
+    } else {
+        Spec::default()
+    };
+    let spec = spec.rename(RUST_NAMING_CONVENTION);
+    spec.validate().expect("lrpmp spec invalid");
+    spec
 }
 
 #[allow(clippy::cognitive_complexity)]
@@ -239,13 +265,3 @@ fn map_msg_ty<S: AsRef<str>>(ty: S) -> TokenStream {
         _ => panic!("unknown type: {}", ty),
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     #[test]
-//     fn test_gen() {
-//         let _ = gen();
-//     }
-// }
