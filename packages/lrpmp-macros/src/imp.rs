@@ -90,11 +90,11 @@ fn gen_std_kind_and_message(spec: &Spec) -> TokenStream {
 
         /// Enum of all standard messages.
         #[derive(Debug, Clone)]
-        pub enum StandardMessage<V> {
-            #(#kind_idents(#message_idents<V>)),*
+        pub enum StandardMessage<M, V> {
+            #(#kind_idents(#message_idents<M, V>)),*
         }
 
-        impl<V> Message<V> for StandardMessage<V> {
+        impl<M, V> Message<M, V> for StandardMessage<M, V> {
             fn kind(&self) -> KnownKind {
                 match self {
                     #(Self::#kind_idents(m) => m.kind()),*
@@ -103,7 +103,7 @@ fn gen_std_kind_and_message(spec: &Spec) -> TokenStream {
 
             fn encode<E>(self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
             where
-                E: MessageEncoder<V>
+                E: MessageEncoder<M, V>
             {
                 match self {
                     #(Self::#kind_idents(m) => m.encode(encoder)),*
@@ -112,7 +112,7 @@ fn gen_std_kind_and_message(spec: &Spec) -> TokenStream {
 
             fn encode_ref<E>(&self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
             where
-                E: MessageEncoder<V>
+                E: MessageEncoder<M, V>
             {
                 match self {
                     #(Self::#kind_idents(m) => m.encode_ref(encoder)),*
@@ -121,7 +121,7 @@ fn gen_std_kind_and_message(spec: &Spec) -> TokenStream {
 
             fn decode<D>(decoder: D) -> Result<Self, MessageError<D::Error>>
             where
-                D: MessageDecoder<V>
+                D: MessageDecoder<M, V>
             {
                 let (kind, decoder) = decoder.start()?;
                 let decoder = KindDecoder::new(kind, decoder);
@@ -158,13 +158,13 @@ fn gen_message(def: &MsgDef) -> TokenStream {
     quote!(
         #[derive(Debug, Clone)]
         #[doc = #struct_doc]
-        pub struct #struct_ident<V> {
-            pub #(#field_idents: #field_types),*,
+        pub struct #struct_ident<M, V> {
+            #(pub #field_idents: #field_types),*,
             // Only allow construction via public methods.
             _seal: (),
         }
 
-        impl<V> #struct_ident<V> {
+        impl<M, V> #struct_ident<M, V> {
             pub fn new(
                 #(#field_idents: #field_types),*,
             ) -> Self {
@@ -175,14 +175,14 @@ fn gen_message(def: &MsgDef) -> TokenStream {
             }
         }
 
-        impl<V> Message<V> for #struct_ident<V> {
+        impl<M, V> Message<M, V> for #struct_ident<M, V> {
             fn kind(&self) -> KnownKind {
                 KnownKind::Standard(StandardKind::#kind_ident)
             }
 
             fn encode<E>(self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
             where
-                E: MessageEncoder<V>,
+                E: MessageEncoder<M, V>,
             {
                 let mut encoder = encoder.start(self.kind())?;
                 #(
@@ -196,7 +196,7 @@ fn gen_message(def: &MsgDef) -> TokenStream {
 
             fn encode_ref<E>(&self, encoder: E) -> Result<E::Ok, MessageError<E::Error>>
             where
-                E: MessageEncoder<V>,
+                E: MessageEncoder<M, V>,
             {
                 let mut encoder = encoder.start(self.kind())?;
                 #(
@@ -210,7 +210,7 @@ fn gen_message(def: &MsgDef) -> TokenStream {
 
             fn decode<D>(decoder: D) -> Result<Self, MessageError<D::Error>>
             where
-                D: MessageDecoder<V>
+                D: MessageDecoder<M, V>
             {
                 let (kind, mut decoder) = decoder.start()?;
                 if kind != KnownKind::Standard(StandardKind::#kind_ident) {
@@ -224,7 +224,7 @@ fn gen_message(def: &MsgDef) -> TokenStream {
                 })
             }
 
-            // fn into_standard(self) -> Option<StandardMessage<V>> {
+            // fn into_standard(self) -> Option<StandardMessage<M, V>> {
             //     Some(StandardMessage::#kind_idents(self))
             // }
         }
@@ -255,7 +255,7 @@ fn map_msg_ty<S: AsRef<str>>(ty: S) -> TokenStream {
         "Id" => quote!(Id),
         "Uri" => quote!(Uri),
         "Kind" => quote!(Kind),
-        "Meta" => quote!(Meta<V>),
+        "Meta" => quote!(Meta<M, V>),
         "Body" => quote!(Body<V>),
         _ => panic!("unknown type: {}", ty),
     }

@@ -1,12 +1,12 @@
 use std::convert::Infallible;
 
-use super::{Kind, ParseBasicUriError, ParseKnownKindError, UnexpectedType};
+use crate::types::{Kind, ParseKnownKindError, UnexpectedType, UriFromBasicError};
 
 #[derive(Debug)]
 pub enum MessageError<E> {
     Eof,
     Codec(E),
-    Uri(ParseBasicUriError),
+    Uri(UriFromBasicError),
     UnexpectedKind(Kind),
     UnexpectedType(UnexpectedType),
     Custom(&'static str),
@@ -35,8 +35,8 @@ impl<E> From<ParseKnownKindError> for MessageError<E> {
     }
 }
 
-impl<E> From<ParseBasicUriError> for MessageError<E> {
-    fn from(err: ParseBasicUriError) -> Self {
+impl<E> From<UriFromBasicError> for MessageError<E> {
+    fn from(err: UriFromBasicError) -> Self {
         Self::Uri(err)
     }
 }

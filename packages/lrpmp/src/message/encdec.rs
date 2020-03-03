@@ -1,14 +1,15 @@
-use super::{BasicValue, FromBasicValue, KnownKind, MessageError}; //AsBasicValueRef, BasicValue, FromBasicValue,
+use super::MessageError;
+use crate::types::{BasicValue, FromBasicValue, KnownKind, Map, Val};
 
-pub trait MessageEncoder<V> {
+pub trait MessageEncoder<M, V> {
     type Ok;
     type Error;
-    type FieldEncoder: MessageFieldEncoder<V, Ok = Self::Ok, Error = Self::Error>;
+    type FieldEncoder: MessageFieldEncoder<M, V, Ok = Self::Ok, Error = Self::Error>;
 
     fn start(self, kind: KnownKind) -> Result<Self::FieldEncoder, MessageError<Self::Error>>;
 }
 
-pub trait MessageFieldEncoder<V> {
+pub trait MessageFieldEncoder<M, V> {
     type Ok;
     type Error;
 
@@ -18,7 +19,9 @@ pub trait MessageFieldEncoder<V> {
         value: F,
     ) -> Result<(), MessageError<Self::Error>>
     where
-        F: BasicValue<V>,
+        F: BasicValue,
+        F::Map: Into<Map<M, V>>,
+        F::Val: Into<Val<V>>,
     {
         self.encode_field_ref(name, &value)
     }
@@ -29,22 +32,25 @@ pub trait MessageFieldEncoder<V> {
         value: &F,
     ) -> Result<(), MessageError<Self::Error>>
     where
-        F: BasicValue<V>;
+        F: BasicValue,
+        F::Map: Into<Map<M, V>>,
+        F::Val: Into<Val<V>>;
 
     fn end(self) -> Result<Self::Ok, MessageError<Self::Error>>;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-pub trait MessageDecoder<V> {
+pub trait MessageDecoder<M, V> {
     type Error;
-    type FieldDecoder: MessageFieldDecoder<V, Error = Self::Error>;
+    type FieldDecoder: MessageFieldDecoder<M, V, Error = Self::Error>;
 
     fn start(self) -> Result<(KnownKind, Self::FieldDecoder), MessageError<Self::Error>>;
 }
 
-pub trait MessageFieldDecoder<V> {
+pub trait MessageFieldDecoder<M, V> {
     type Error;
+    type Value: BasicValue<Map = Map<M, V>, Val = Val<V>>;
 
     fn remaining(&self) -> Option<usize>;
 
@@ -53,7 +59,7 @@ pub trait MessageFieldDecoder<V> {
         name: Option<&'static str>,
     ) -> Result<T, MessageError<Self::Error>>
     where
-        T: FromBasicValue<V>,
+        T: FromBasicValue<Self::Value>,
         T::Error: Into<MessageError<Self::Error>>;
 }
 
@@ -73,9 +79,9 @@ impl<D> KindDecoder<D> {
     }
 }
 
-impl<'dec, V, D> MessageDecoder<V> for KindDecoder<D>
+impl<'dec, M, V, D> MessageDecoder<M, V> for KindDecoder<D>
 where
-    D: MessageFieldDecoder<V>,
+    D: MessageFieldDecoder<M, V>,
 {
     type Error = D::Error;
     type FieldDecoder = D;

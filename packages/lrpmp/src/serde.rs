@@ -5,7 +5,7 @@ use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 
 use crate::message::basic::{
-    AsBasicValueRef, BasicType, BasicValue, BasicValueRef, FromBasicValue,
+    BasicType, BasicValue, FromBasicValue,
 };
 use crate::message::special::KnownKind;
 use crate::message::{
@@ -57,41 +57,21 @@ where
     type Ok = S::Ok;
     type Error = S::Error;
 
-    fn encode_field<F>(
+    fn encode_field_ref<F>(
         &mut self,
         _name: Option<&'static str>,
-        value: F,
+        value: &F,
     ) -> Result<(), MessageError<S::Error>>
     where
-        F: Into<BasicValue<V>>,
+        F: BasicValue<V>,
     {
-        use BasicValue::*;
-        match value.into() {
-            U8(v) => self.0.serialize_element(&v),
-            U64(v) => self.0.serialize_element(&v),
-            Str(v) => self.0.serialize_element(&v as &str),
-            Map(v) => self.0.serialize_element(&v),
-            Val(v) => self.0.serialize_element(&v),
-        }
-        .map_err(MessageError::Codec)
-    }
-
-    fn encode_field_ref<'f, F>(
-        &mut self,
-        _name: Option<&'static str>,
-        value: &'f F,
-    ) -> Result<(), MessageError<S::Error>>
-    where
-        V: 'f,
-        F: AsBasicValueRef<'f, V>,
-    {
-        use BasicValueRef::*;
-        match value.as_basic_value_ref() {
-            U8(v) => self.0.serialize_element(&v),
-            U64(v) => self.0.serialize_element(&v),
-            Str(v) => self.0.serialize_element(v),
-            Map(v) => self.0.serialize_element(v),
-            Val(v) => self.0.serialize_element(v),
+        use BasicType::*;
+        match value.ty() {
+            U8 => self.0.serialize_element(&value.as_u8()),
+            U64 => self.0.serialize_element(&value.as_u64()),
+            Str => self.0.serialize_element(value.as_str()),
+            Map => self.0.serialize_element(value.as_map()),
+            Val => self.0.serialize_element(value.as_val()),
         }
         .map_err(MessageError::Codec)
     }
@@ -124,7 +104,7 @@ where
 impl<'de, V, D> MessageDecoder<V> for ArrayDecoder<'de, D>
 where
     D: Deserializer<'de>,
-    V: Deserialize<'de> + Into<BasicValue<V>>,
+    V: Deserialize<'de> + BasicValue<V>,
 {
     type Error = D::Error;
     type FieldDecoder = ArrayFieldDecoder<V, D::Error>;
@@ -151,7 +131,7 @@ pub struct ArrayFieldDecoder<V, E> {
 
 impl<V, E> MessageFieldDecoder<V> for ArrayFieldDecoder<V, E>
 where
-    V: Into<BasicValue<V>>,
+    V: BasicValue<V>,
 {
     type Error = E;
 
