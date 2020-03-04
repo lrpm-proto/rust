@@ -97,6 +97,13 @@ pub enum KnownKind {
 }
 
 impl KnownKind {
+    pub fn is_standard(&self) -> bool {
+        match self {
+            Self::Standard(_) => true,
+            Self::Custom(_) => false,
+        }
+    }
+
     pub fn code(&self) -> u8 {
         match self {
             Self::Standard(k) => k.code(),

@@ -21,13 +21,6 @@ pub struct ParseUriError {
     pub offset: usize,
 }
 
-impl ParseUriError {
-    pub(crate) fn new(c: u8, offset: usize) -> Self {
-        let invalid = c as char;
-        Self { invalid, offset }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum UriFromBasicError {
     Parse(ParseUriError),

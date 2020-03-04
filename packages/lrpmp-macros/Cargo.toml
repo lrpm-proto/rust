@@ -12,3 +12,4 @@ lrpmp-spec = { path = "../lrpmp-spec" }
 syn = "~1"
 quote = "~1"
 proc-macro2 = "~1"
+proc-macro-hack = "0.5"

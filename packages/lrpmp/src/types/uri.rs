@@ -4,6 +4,8 @@ use std::fmt;
 use bytes::Bytes;
 use bytestring::ByteString;
 
+use lrpmp_spec::uri::{UriAnalysis, UriParts};
+
 use super::*;
 
 /// Represents a resource unique across all sessions.
@@ -11,68 +13,37 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Uri {
     contents: ByteString,
-    segment_count: u8,
-    wildcard_count: u8,
+    parts: UriParts,
 }
 
 impl Uri {
-    const SEGMENT: u8 = b'.';
-    const WILDCARD: u8 = b'*';
-
     pub fn as_str(&self) -> &str {
         self.contents.as_ref()
     }
 
     pub fn has_wildcard(&self) -> bool {
-        self.wildcard_count > 0
+        self.parts.wildcard_count > 0
     }
 
     pub fn segment_count(&self) -> u8 {
-        self.segment_count
+        self.parts.segment_count
     }
 
     pub fn wildcard_count(&self) -> u8 {
-        self.wildcard_count
+        self.parts.wildcard_count
     }
 
     pub fn from_static(s: &'static str) -> Result<Self, ParseUriError> {
-        Self::from_bytes(Bytes::from_static(s.as_ref()))
+        Self::try_from(Bytes::from_static(s.as_bytes()))
     }
 
-    fn from_bytes(contents: Bytes) -> Result<Self, ParseUriError> {
-        let mut prev_char = 0;
-        let mut segment_count = 0;
-        let mut wildcard_count = 0;
-        for (i, c) in contents.as_ref().iter().copied().enumerate() {
-            match c {
-                Self::WILDCARD => {
-                    if prev_char == Self::WILDCARD || wildcard_count == u8::max_value() {
-                        return Err(ParseUriError::new(c, i));
-                    }
-                    wildcard_count += 1;
-                }
-                Self::SEGMENT if prev_char == Self::SEGMENT => {
-                    if prev_char == Self::SEGMENT || segment_count == u8::max_value() {
-                        return Err(ParseUriError::new(c, i));
-                    }
-                    segment_count += 1;
-                }
-                b'_' | b'a'..=b'z' | b'0'..=b'9' => (),
-                _ => {
-                    return Err(ParseUriError {
-                        invalid: c as char,
-                        offset: i,
-                    })
-                }
-            }
-            prev_char = c;
-        }
-        let contents = unsafe { ByteString::from_bytes_unchecked(contents) };
-        Ok(Self {
-            contents,
-            segment_count,
-            wildcard_count,
-        })
+    pub const unsafe fn from_parts_unchecked(contents: Bytes, parts: UriParts) -> Self {
+        let contents = ByteString::from_bytes_unchecked(contents);
+        Uri { contents, parts }
+    }
+
+    pub const unsafe fn from_static_parts_unchecked(uri: &'static str, parts: UriParts) -> Self {
+        Self::from_parts_unchecked(Bytes::from_static(uri.as_bytes()), parts)
     }
 }
 
@@ -85,8 +56,11 @@ impl fmt::Display for Uri {
 impl TryFrom<Bytes> for Uri {
     type Error = ParseUriError;
 
-    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
-        Self::from_bytes(value)
+    fn try_from(contents: Bytes) -> Result<Self, Self::Error> {
+        match UriAnalysis::for_uri_bytes(contents.as_ref()) {
+            UriAnalysis::Valid(parts) => unsafe { Ok(Uri::from_parts_unchecked(contents, parts)) },
+            UriAnalysis::Invalid { invalid, offset } => Err(ParseUriError { invalid, offset }),
+        }
     }
 }
 
@@ -94,7 +68,7 @@ impl TryFrom<String> for Uri {
     type Error = ParseUriError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::from_bytes(Bytes::from(value))
+        Self::try_from(Bytes::from(value))
     }
 }
 
@@ -102,7 +76,7 @@ impl TryFrom<ByteString> for Uri {
     type Error = ParseUriError;
 
     fn try_from(value: ByteString) -> Result<Self, Self::Error> {
-        Self::from_bytes(value.into_inner())
+        Self::try_from(value.into_inner())
     }
 }
 

@@ -69,6 +69,10 @@ impl<M, V> Message<M, V> for GenericMessage<M, V> {
         }
         Ok(Self { kind, fields })
     }
+
+    fn into_generic(self) -> Self {
+        self
+    }
 }
 
 pub struct FieldIter<'a, M, V> {

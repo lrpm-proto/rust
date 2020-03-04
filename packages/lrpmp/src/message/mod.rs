@@ -46,16 +46,17 @@ pub trait Message<M, V>: Sized {
     }
 
     /// Convert the message into a generic message.
-    fn into_generic<MO, VO>(self) -> GenericMessage<MO, VO>
-    where
-        MO: From<M>,
-        VO: From<V>,
-    {
+    fn into_generic(self) -> GenericMessage<M, V> {
         self.transmute().unwrap()
     }
 }
 
 pub trait MessageExt<M, V>: Message<M, V> {
+    #[inline]
+    fn is_standard(&self) -> bool {
+        self.kind().is_standard()
+    }
+
     /// Transmute one message type to another.
     fn transmute<MsgOut, MapOut, ValOut>(self) -> Result<MsgOut, MessageError<()>>
     where

@@ -16,6 +16,15 @@ impl<M, V> Meta<M, V> {
     }
 }
 
+impl<M, V> Default for Meta<M, V>
+where
+    M: Default,
+{
+    fn default() -> Self {
+        Meta::new(M::default())
+    }
+}
+
 impl<M, V> BasicValue<M, V> for Meta<M, V> {
     fn ty(&self) -> BasicType {
         BasicType::Map

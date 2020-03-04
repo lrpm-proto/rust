@@ -1,6 +1,7 @@
 mod message;
 
 pub mod naming;
+pub mod uri;
 
 use std::str::FromStr;
 

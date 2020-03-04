@@ -2,9 +2,13 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::{Deref, DerefMut};
 
 use super::json;
+use crate::types;
+
+pub type Meta<V> = types::Meta<Map<V>, V>;
 
 type MapInner<V> = BTreeMap<String, V>;
 
+#[derive(Debug)]
 pub struct Map<V> {
     inner: MapInner<V>,
 }
@@ -42,5 +46,13 @@ impl<V> Deref for Map<V> {
 impl<V> DerefMut for Map<V> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
+    }
+}
+
+impl<V> Default for Map<V> {
+    fn default() -> Self {
+        Self {
+            inner: Default::default(),
+        }
     }
 }
