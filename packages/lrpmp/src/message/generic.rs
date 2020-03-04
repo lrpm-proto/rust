@@ -1,3 +1,7 @@
+use std::slice;
+
+use super::dec::*;
+use super::enc::*;
 use super::*;
 use crate::types::{BasicValue, BasicValueExt, ConcreteBasicValue, KnownKind};
 
@@ -17,6 +21,12 @@ impl<M, V> GenericMessage<M, V> {
             .map(BasicValueExt::into_concrete)
             .collect();
         Self { kind, fields }
+    }
+
+    pub fn field_iter(&self) -> FieldIter<'_, M, V> {
+        FieldIter {
+            inner: self.fields.iter(),
+        }
     }
 }
 
@@ -60,3 +70,21 @@ impl<M, V> Message<M, V> for GenericMessage<M, V> {
         Ok(Self { kind, fields })
     }
 }
+
+pub struct FieldIter<'a, M, V> {
+    inner: slice::Iter<'a, ConcreteBasicValue<M, V>>,
+}
+
+impl<'a, M, V> Iterator for FieldIter<'a, M, V> {
+    type Item = &'a dyn BasicValue<M, V>;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|f| f as &_)
+    }
+}
+
+impl<'a, M, V> ExactSizeIterator for FieldIter<'a, M, V> {}

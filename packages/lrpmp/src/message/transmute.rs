@@ -1,9 +1,9 @@
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 
-use super::{
-    ArrayFieldDecoder, KindDecoder, Message, MessageEncoder, MessageError, MessageFieldEncoder,
-};
+use super::dec::{ArrayFieldDecoder, KindDecoder};
+use super::enc::{MessageEncoder, MessageFieldEncoder};
+use super::{Message, MessageError};
 use crate::types::{BasicValue, BasicValueExt, ConcreteBasicValue, KnownKind};
 
 pub(crate) struct TransmuteEncoder<M, MO, VO>

@@ -4,6 +4,8 @@ use std::marker::PhantomData;
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 
+use crate::message::dec::*;
+use crate::message::enc::*;
 use crate::message::*;
 use crate::types::*;
 

@@ -1,12 +1,15 @@
-mod encdec;
 mod error;
-mod generic;
 mod io;
 mod transmute;
 
-pub use self::encdec::*;
+pub mod dec;
+pub mod enc;
+pub mod generic;
+
+pub use self::dec::MessageDecoder;
+pub use self::enc::MessageEncoder;
 pub use self::error::*;
-pub use self::generic::*;
+pub use self::generic::GenericMessage;
 pub use self::io::*;
 
 use self::transmute::*;
