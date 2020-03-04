@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::fmt;
 
+use bytestring::ByteString;
 use bytes::Bytes;
 
 use super::*;
@@ -114,8 +115,8 @@ impl<M, V> BasicValue<M, V> for Uri {
         self.as_str()
     }
 
-    fn into_string(self) -> ByteString {
-        self.contents
+    fn into_string(self) -> String {
+        self.contents.to_string()
     }
 
     impl_invalid_basic_types!(<M, V> U8, U64, Map, Val);
@@ -128,7 +129,7 @@ impl<M, V> FromBasicValuePart<M, V> for Uri {
         &[BasicType::Str]
     }
 
-    fn from_basic_str(v: ByteString) -> Result<Self, Self::Error> {
+    fn from_basic_str(v: String) -> Result<Self, Self::Error> {
         Ok(Self::try_from(v)?)
     }
 }

@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use super::*;
 
-pub use bytestring::ByteString;
-
 /// The basic types used by LRPMP.
 #[derive(Debug, Hash, Clone, Copy, PartialEq)]
 pub enum BasicType {
@@ -36,7 +34,7 @@ pub trait BasicValue<M, V> {
 
     fn as_val(&self) -> &V;
 
-    fn into_string(self) -> ByteString;
+    fn into_string(self) -> String;
 
     fn into_map(self) -> M;
 
@@ -80,7 +78,7 @@ where
     }
 
     #[inline]
-    fn into_string(self) -> ByteString {
+    fn into_string(self) -> String {
         self.as_str().into()
     }
 
@@ -165,7 +163,7 @@ pub trait BasicValueExt<M, V>: BasicValue<M, V> + Sized {
     }
 
     #[inline]
-    fn try_into_string(self) -> Result<ByteString, UnexpectedType> {
+    fn try_into_string(self) -> Result<String, UnexpectedType> {
         self.expect_types(&[BasicType::Str])?;
         Ok(self.into_string())
     }
@@ -210,7 +208,7 @@ pub trait FromBasicValuePart<M, V>: Sized {
         .into())
     }
 
-    fn from_basic_str(v: ByteString) -> Result<Self, Self::Error> {
+    fn from_basic_str(v: String) -> Result<Self, Self::Error> {
         let _ = v;
         Err(UnexpectedType {
             actual: BasicType::Str,
@@ -356,7 +354,7 @@ impl<M, V> FromBasicValuePart<M, V> for u64 {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-impl<M, V> BasicValue<M, V> for ByteString {
+impl<M, V> BasicValue<M, V> for String {
     #[inline]
     fn ty(&self) -> BasicType {
         BasicType::Str
@@ -375,14 +373,14 @@ impl<M, V> BasicValue<M, V> for ByteString {
     impl_invalid_basic_types!(<M, V> U8, U64, Map, Val);
 }
 
-impl<M, V> FromBasicValuePart<M, V> for ByteString {
+impl<M, V> FromBasicValuePart<M, V> for String {
     type Error = UnexpectedType;
 
     fn expected_types() -> &'static [BasicType] {
         &[BasicType::Str]
     }
 
-    fn from_basic_str(v: ByteString) -> Result<Self, Self::Error> {
+    fn from_basic_str(v: String) -> Result<Self, Self::Error> {
         Ok(v)
     }
 }
@@ -503,7 +501,7 @@ impl<M, V> FromBasicValuePart<M, V> for Val<V> {
 pub enum ConcreteBasicValue<M, V> {
     U8(u8),
     U64(u64),
-    Str(ByteString),
+    Str(String),
     Map(M),
     Val(V),
 }
@@ -567,7 +565,7 @@ impl<M, V> BasicValue<M, V> for ConcreteBasicValue<M, V> {
     }
 
     #[inline]
-    fn into_string(self) -> ByteString {
+    fn into_string(self) -> String {
         assert_eq!(self.ty(), BasicType::Str);
         match self {
             Self::Str(v) => v,
@@ -618,7 +616,7 @@ impl<M, V> FromBasicValuePart<M, V> for ConcreteBasicValue<M, V> {
     }
 
     #[inline]
-    fn from_basic_str(v: ByteString) -> Result<Self, Self::Error> {
+    fn from_basic_str(v: String) -> Result<Self, Self::Error> {
         Ok(Self::Str(v))
     }
 

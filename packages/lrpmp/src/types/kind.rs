@@ -17,7 +17,7 @@ impl Kind {
         Self::Unknown(UnknownKind::Code(code))
     }
 
-    pub fn from_name(name: ByteString) -> Self {
+    pub fn from_name(name: String) -> Self {
         if let Some(known) = KnownKind::from_name(name.as_ref()) {
             return Self::Known(known);
         }
@@ -51,7 +51,7 @@ impl<M, V> BasicValue<M, V> for Kind {
         }
     }
 
-    fn into_string(self) -> ByteString {
+    fn into_string(self) -> String {
         <Self as BasicValueExt<M, V>>::assert_is_type(&self, BasicType::Str);
         match self {
             Kind::Unknown(UnknownKind::Name(n)) => n,
@@ -73,7 +73,7 @@ impl<M, V> FromBasicValuePart<M, V> for Kind {
         Ok(Self::from_code(v))
     }
 
-    fn from_basic_str(v: ByteString) -> Result<Self, Self::Error> {
+    fn from_basic_str(v: String) -> Result<Self, Self::Error> {
         Ok(Self::from_name(v))
     }
 }
@@ -83,7 +83,7 @@ impl<M, V> FromBasicValuePart<M, V> for Kind {
 /// Represents an unknown message kind.
 #[derive(Debug, Clone, PartialEq)]
 pub enum UnknownKind {
-    Name(ByteString),
+    Name(String),
     Code(u8),
 }
 
@@ -147,7 +147,7 @@ impl<M, V> FromBasicValuePart<M, V> for KnownKind {
         }
     }
 
-    fn from_basic_str(v: ByteString) -> Result<Self, Self::Error> {
+    fn from_basic_str(v: String) -> Result<Self, Self::Error> {
         match <Kind as FromBasicValuePart<M, V>>::from_basic_str(v)? {
             Kind::Known(k) => Ok(k),
             Kind::Unknown(k) => Err(k.into()),

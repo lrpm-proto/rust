@@ -1,28 +1,29 @@
-mod value;
-
 use serde::{Deserialize, Serialize};
 
-use serde_cbor::de::{Deserializer, IoRead};
-use serde_cbor::ser::{IoWrite, Serializer};
-use serde_cbor::Error as InnerError;
+use serde_json::de::{Deserializer, IoRead};
+use serde_json::ser::Serializer;
+use serde_json::Error as InnerError;
 
 use crate::io::{Read, Write};
 use crate::message::{self as msg, Message, MessageError};
 use crate::serde::{ArrayDecoder, ArrayEncoder, ArrayFieldDecoder, ArrayFieldEncoder};
-use crate::types::{ConcreteBasicValue, IntoBasicValue, KnownKind};
+use crate::types::{BasicValue, ConcreteBasicValue, FromBasicValuePart, IntoBasicValue, KnownKind};
 
-pub use self::value::*;
+pub use serde_json::Value;
+
+pub type Map = serde_json::Map<String, Val>;
+pub type Val = Value;
 
 pub type Error = MessageError<InnerError>;
 
 pub struct MessageEncoder<W: Write> {
-    inner: Serializer<IoWrite<W>>,
+    inner: Serializer<W>,
 }
 
 impl<W: Write> MessageEncoder<W> {
     pub fn from_writer(writer: W) -> Self {
         Self {
-            inner: Serializer::new(IoWrite::new(writer)),
+            inner: Serializer::new(writer),
         }
     }
 }
@@ -35,7 +36,7 @@ where
 {
     type Ok = ();
     type Error = InnerError;
-    type FieldEncoder = ArrayFieldEncoder<&'a mut Serializer<IoWrite<W>>>;
+    type FieldEncoder = ArrayFieldEncoder<&'a mut Serializer<W>>;
 
     fn start(self, kind: KnownKind) -> Result<Self::FieldEncoder, MessageError<Self::Error>> {
         msg::MessageEncoder::<M, V>::start(ArrayEncoder::new(&mut self.inner), kind)
@@ -71,7 +72,7 @@ where
 }
 
 pub struct MessageWriter<W: Write> {
-    inner: Serializer<IoWrite<W>>,
+    inner: Serializer<W>,
 }
 
 impl<W> msg::MessageWriter<W> for MessageWriter<W>
@@ -113,6 +114,33 @@ where
     }
 }
 
+impl<B> IntoBasicValue<B, Map, Val> for Value
+where
+    B: BasicValue<Map, Val>,
+    B: FromBasicValuePart<Map, Val>,
+{
+    type Error = B::Error;
+
+    fn into_basic(self) -> Result<B, Self::Error> {
+        match self {
+            Value::Number(n) if n.is_u64() => {
+                if let Some(n) = n.as_u64() {
+                    if n <= u8::max_value() as u64 {
+                        B::from_basic_u8(n as u8)
+                    } else {
+                        B::from_basic_u64(n)
+                    }
+                } else {
+                    unreachable!()
+                }
+            }
+            Value::String(s) => B::from_basic_str(s),
+            Value::Object(m) => B::from_basic_map(m),
+            val => B::from_basic_val(val),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use bytes::buf::{BufExt, BufMutExt};
@@ -125,7 +153,7 @@ mod tests {
     #[test]
     fn test_message_encoder_decoder() {
         let src_message = HelloMessage::new(
-            Body::new(Value::Text("1".into())),
+            Body::new(Value::String("1".into())),
             Meta::new(Map::default()),
         );
         // Encoder
@@ -134,7 +162,7 @@ mod tests {
         src_message.encode(&mut encoder).unwrap();
         // Buf
         let buf = writer.into_inner();
-        assert_eq!(&[0x83, 0x02, 0x61, 0x31, 0xA0][..], &buf[..]);
+        assert_eq!(br#"[2,"1",{}]"#, &buf[..]);
         // Decoder
         let reader = buf.reader();
         let mut decoder = MessageDecoder::from_reader(reader);

@@ -29,7 +29,7 @@ macro_rules! impl_invalid_basic_type {
         }
 
         #[inline]
-        fn into_string(self) -> ByteString {
+        fn into_string(self) -> String {
             <Self as BasicValueExt<$M, $V>>::assert_is_type(&self, BasicType::Str);
             unreachable!()
         }
