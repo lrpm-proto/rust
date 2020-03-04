@@ -1,6 +1,5 @@
-pub mod cbor;
+pub mod codec;
 pub mod io;
-pub mod json;
 pub mod message;
 pub mod serde;
 pub mod types;
