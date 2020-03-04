@@ -3,7 +3,11 @@ pub const WILDCARD: u8 = b'*';
 
 pub enum UriAnalysis {
     Valid(UriParts),
-    Invalid { invalid: char, offset: usize },
+    Invalid {
+        invalid: char,
+        offset: usize,
+        reason: &'static str,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -44,18 +48,18 @@ impl UriAnalysis {
             match c {
                 WILDCARD => {
                     if prev_char == WILDCARD || wildcard_count == u8::max_value() {
-                        return Self::invalid(c, i);
+                        return Self::invalid(c, i, "double `*`");
                     }
                     wildcard_count += 1;
                 }
                 SEGMENT => {
                     if prev_char == SEGMENT || segment_count == u8::max_value() {
-                        return Self::invalid(c, i);
+                        return Self::invalid(c, i, "double `.`");
                     }
                     segment_count += 1;
                 }
                 b'_' | b'a'..=b'z' | b'0'..=b'9' => (),
-                _ => return Self::invalid(c, i),
+                _ => return Self::invalid(c, i, "invalid char"),
             }
             prev_char = c;
         }
@@ -68,10 +72,14 @@ impl UriAnalysis {
     #[inline]
     pub fn assert_valid(uri: &str) -> UriParts {
         match Self::for_uri_bytes(uri.as_bytes()) {
-            Self::Invalid { invalid, offset } => {
+            Self::Invalid {
+                invalid,
+                offset,
+                reason,
+            } => {
                 panic!(
-                    "invalid uri `{}` at char `{}` (offset {})",
-                    uri, invalid, offset
+                    "invalid uri `{}` at char `{}` (reason: {}, offset {})",
+                    uri, invalid, reason, offset
                 );
             }
             Self::Valid(parts) => parts,
@@ -79,9 +87,10 @@ impl UriAnalysis {
     }
 
     #[inline]
-    fn invalid(invalid: u8, offset: usize) -> Self {
+    fn invalid(invalid: u8, offset: usize, reason: &'static str) -> Self {
         Self::Invalid {
             invalid: invalid as char,
+            reason,
             offset,
         }
     }

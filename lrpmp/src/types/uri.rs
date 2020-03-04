@@ -59,7 +59,7 @@ impl TryFrom<Bytes> for Uri {
     fn try_from(contents: Bytes) -> Result<Self, Self::Error> {
         match UriAnalysis::for_uri_bytes(contents.as_ref()) {
             UriAnalysis::Valid(parts) => unsafe { Ok(Uri::from_parts_unchecked(contents, parts)) },
-            UriAnalysis::Invalid { invalid, offset } => Err(ParseUriError { invalid, offset }),
+            UriAnalysis::Invalid { invalid, offset, .. } => Err(ParseUriError { invalid, offset }),
         }
     }
 }
