@@ -113,24 +113,6 @@ where
     }
 }
 
-// pub struct MessageTranslation;
-
-// impl<V> msg::MessageTranslation<V> for MessageTranslation
-// where
-//     V: Serialize,
-// {
-//     type Value = Value;
-//     type Error = Error;
-
-//     fn translate<I, O>(message: I) -> Result<O, Self::Error>
-//     where
-//         I: Message<V>,
-//         O: Message<Self::Value>
-//     {
-//         SerdeTranslator.translate(message)
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use bytes::buf::{BufExt, BufMutExt};
