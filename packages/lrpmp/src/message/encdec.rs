@@ -1,5 +1,7 @@
+use std::collections::VecDeque;
+
 use super::MessageError;
-use crate::types::{BasicValue, FromBasicValuePart, KnownKind};
+use crate::types::{BasicValue, ConcreteBasicValue, FromBasicValue, FromBasicValuePart, KnownKind};
 
 pub trait MessageEncoder<M, V> {
     type Ok;
@@ -83,5 +85,35 @@ where
 
     fn start(self) -> Result<(KnownKind, Self::FieldDecoder), MessageError<Self::Error>> {
         Ok((self.kind, self.field_decoder))
+    }
+}
+
+pub(crate) struct ArrayFieldDecoder<M, V> {
+    fields: VecDeque<ConcreteBasicValue<M, V>>,
+}
+
+impl<M, V> ArrayFieldDecoder<M, V> {
+    pub fn new(fields: VecDeque<ConcreteBasicValue<M, V>>) -> Self {
+        Self { fields }
+    }
+}
+
+impl<M, V> MessageFieldDecoder<M, V> for ArrayFieldDecoder<M, V> {
+    type Error = ();
+
+    fn remaining(&self) -> Option<usize> {
+        Some(self.fields.len())
+    }
+
+    fn decode_field<T>(
+        &mut self,
+        _name: Option<&'static str>,
+    ) -> Result<T, MessageError<Self::Error>>
+    where
+        T: FromBasicValuePart<M, V>,
+        T::Error: Into<MessageError<Self::Error>>,
+    {
+        let value = self.fields.pop_front().ok_or(MessageError::<()>::Eof)?;
+        T::from_basic(value).map_err(Into::into)
     }
 }

@@ -118,14 +118,21 @@ pub trait BasicValueExt<M, V>: BasicValue<M, V> + Sized {
         ConcreteBasicValue::from_basic(self).unwrap()
     }
 
-    // #[inline]
-    // fn map_into<T>(self) -> Result<T, T::Error>
-    // where
-    //     T: FromBasicValue<Self>,
-    //     Self::Map: Into<MapSource<Self::Val>>,
-    // {
-    //     T::from_basic_value(self)
-    // }
+    #[inline]
+    fn map_into<T, MO, VO>(self) -> Result<T, T::Error>
+    where
+        MO: From<M>,
+        VO: From<V>,
+        T: FromBasicValuePart<MO, VO>,
+    {
+        match self.ty() {
+            BasicType::U8 => T::from_basic_u8(self.as_u8()),
+            BasicType::U64 => T::from_basic_u64(self.as_u64()),
+            BasicType::Str => T::from_basic_str(self.into_string()),
+            BasicType::Map => T::from_basic_map(self.into_map().into()),
+            BasicType::Val => T::from_basic_val(self.into_val().into()),
+        }
+    }
 
     #[inline]
     fn try_as_u8(&self) -> Result<u8, UnexpectedType> {

@@ -59,8 +59,4 @@ impl<M, V> Message<M, V> for GenericMessage<M, V> {
         }
         Ok(Self { kind, fields })
     }
-
-    fn into_standard(self) -> Result<StandardMessage<M, V>, MessageError<()>> {
-        unimplemented!()
-    }
 }
