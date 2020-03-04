@@ -18,7 +18,7 @@ impl<V> Body<V> {
 
 impl<M, V> BasicValue<M, V> for Body<V> {
     fn ty(&self) -> BasicType {
-        BasicType::Str
+        BasicType::Val
     }
 
     fn as_val(&self) -> &V {

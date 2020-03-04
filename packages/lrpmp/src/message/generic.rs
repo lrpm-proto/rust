@@ -57,10 +57,7 @@ impl<M, V> Message<M, V> for GenericMessage<M, V> {
         while Some(0) != decoder.remaining() {
             fields.push(decoder.decode_field(None)?);
         }
-        Ok(Self {
-            kind,
-            fields,
-        })
+        Ok(Self { kind, fields })
     }
 
     fn into_standard(self) -> Result<StandardMessage<M, V>, MessageError<()>> {

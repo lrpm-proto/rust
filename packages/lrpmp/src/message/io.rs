@@ -6,22 +6,24 @@ pub trait MessageWriter<W>
 where
     W: Write,
 {
-    type Value;
+    type Map;
+    type Val;
     type Error;
 
     fn write_message<M>(&mut self, message: &M) -> Result<(), Self::Error>
     where
-        M: Message<Self::Value>;
+        M: Message<Self::Map, Self::Val>;
 }
 
 pub trait MessageReader<R>
 where
     R: Read,
 {
-    type Value;
+    type Map;
+    type Val;
     type Error;
 
     fn read_message<M>(&mut self) -> Result<M, Self::Error>
     where
-        M: Message<Self::Value>;
+        M: Message<Self::Map, Self::Val>;
 }

@@ -1,12 +1,12 @@
 mod encdec;
 mod error;
 mod generic;
-//mod io;
+mod io;
 
 pub use self::encdec::*;
 pub use self::error::*;
 pub use self::generic::*;
-//pub use self::io::*;
+pub use self::io::*;
 
 use crate::types::KnownKind;
 
