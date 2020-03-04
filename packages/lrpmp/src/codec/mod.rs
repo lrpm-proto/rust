@@ -1,2 +1,3 @@
-pub mod json;
 pub mod cbor;
+pub mod generic;
+pub mod json;
