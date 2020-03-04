@@ -16,43 +16,30 @@ impl<M, V> Meta<M, V> {
     }
 }
 
-impl<M, V> BasicValue for Meta<M, V> {
-    type Map = Map<M, V>;
-    type Val = Val<V>;
-
+impl<M, V> BasicValue<M, V> for Meta<M, V> {
     fn ty(&self) -> BasicType {
         BasicType::Map
     }
 
-    fn as_map(&self) -> &Map<M, V> {
-        &self.inner
+    fn as_map(&self) -> &M {
+        &self.inner.as_inner()
     }
 
-    fn into_map(self) -> Map<M, V> {
-        self.inner
+    fn into_map(self) -> M {
+        self.inner.into_inner()
     }
 
-    impl_invalid_basic_types!(U8, U64, Str, Val);
+    impl_invalid_basic_types!(<M, V> U8, U64, Str, Val);
 }
 
-impl<B, M, V> FromBasicValue<B> for Meta<M, V>
-where
-    B: BasicValue<Map = Map<M, V>>,
-{
+impl<M, V> FromBasicValuePart<M, V> for Meta<M, V> {
     type Error = UnexpectedType;
 
     fn expected_types() -> &'static [BasicType] {
         &[BasicType::Map]
     }
 
-    fn from_basic_value(value: B) -> Result<Self, Self::Error> {
-        // let map = match value.try_into_map()?.into() {
-        //     MapSource::Map(m) => m,
-        //     MapSource::Items(i) => i.collect(),
-        // };
-
-        Ok(Self {
-            inner: value.try_into_map()?,
-        })
+    fn from_basic_map(v: M) -> Result<Self, Self::Error> {
+        Ok(Self::new(v))
     }
 }

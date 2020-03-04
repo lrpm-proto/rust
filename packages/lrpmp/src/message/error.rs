@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 
-use crate::types::{Kind, ParseKnownKindError, UnexpectedType, UriFromBasicError};
+use crate::types::{Kind, KnownKindFromBasicError, UnexpectedType, UriFromBasicError};
 
 #[derive(Debug)]
 pub enum MessageError<E> {
@@ -26,11 +26,11 @@ impl<E> MessageError<E> {
     }
 }
 
-impl<E> From<ParseKnownKindError> for MessageError<E> {
-    fn from(err: ParseKnownKindError) -> Self {
+impl<E> From<KnownKindFromBasicError> for MessageError<E> {
+    fn from(err: KnownKindFromBasicError) -> Self {
         match err {
-            ParseKnownKindError::UnexpectedType(t) => t.into(),
-            ParseKnownKindError::UnknownKind(k) => Self::UnexpectedKind(Kind::Unknown(k)),
+            KnownKindFromBasicError::UnexpectedType(t) => t.into(),
+            KnownKindFromBasicError::UnknownKind(k) => Self::UnexpectedKind(Kind::Unknown(k)),
         }
     }
 }

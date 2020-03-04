@@ -4,13 +4,8 @@ use std::marker::PhantomData;
 use serde::de::{Deserialize, Deserializer};
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 
-use crate::message::basic::{
-    BasicType, BasicValue, FromBasicValue,
-};
-use crate::message::special::KnownKind;
-use crate::message::{
-    MessageDecoder, MessageEncoder, MessageError, MessageFieldDecoder, MessageFieldEncoder,
-};
+use crate::message::*;
+use crate::types::*;
 
 pub struct ArrayEncoder<S> {
     inner: S,
@@ -25,10 +20,11 @@ where
     }
 }
 
-impl<V, S> MessageEncoder<V> for ArrayEncoder<S>
+impl<M, V, S> MessageEncoder<M, V> for ArrayEncoder<S>
 where
     S: Serializer,
     V: Serialize,
+    M: Serialize,
 {
     type Ok = S::Ok;
     type Error = S::Error;
@@ -49,9 +45,10 @@ where
 
 pub struct ArrayFieldEncoder<S: Serializer>(S::SerializeSeq);
 
-impl<V, S> MessageFieldEncoder<V> for ArrayFieldEncoder<S>
+impl<M, V, S> MessageFieldEncoder<M, V> for ArrayFieldEncoder<S>
 where
     S: Serializer,
+    M: Serialize,
     V: Serialize,
 {
     type Ok = S::Ok;
@@ -61,9 +58,9 @@ where
         &mut self,
         _name: Option<&'static str>,
         value: &F,
-    ) -> Result<(), MessageError<S::Error>>
+    ) -> Result<(), MessageError<Self::Error>>
     where
-        F: BasicValue<V>,
+        F: BasicValue<M, V>,
     {
         use BasicType::*;
         match value.ty() {
@@ -101,20 +98,23 @@ where
     lifetime: PhantomData<&'de D>,
 }
 
-impl<'de, V, D> MessageDecoder<V> for ArrayDecoder<'de, D>
+impl<'de, M, V, D> MessageDecoder<M, V> for ArrayDecoder<'de, D>
 where
     D: Deserializer<'de>,
-    V: Deserialize<'de> + BasicValue<V>,
+    V: Deserialize<'de>,
+    V: IntoBasicValue<ConcreteBasicValue<M, V>, M, V>,
+    V::Error: Into<MessageError<D::Error>>,
+    M: Deserialize<'de>,
 {
     type Error = D::Error;
-    type FieldDecoder = ArrayFieldDecoder<V, D::Error>;
+    type FieldDecoder = ArrayFieldDecoder<M, V, D::Error>;
 
     fn start(self) -> Result<(KnownKind, Self::FieldDecoder), MessageError<D::Error>> {
         match VecDeque::<V>::deserialize(self.inner) {
             Ok(values) => {
                 let mut field_decoder = ArrayFieldDecoder {
                     values,
-                    error: PhantomData,
+                    marker: PhantomData,
                 };
                 let kind = field_decoder.decode_field(Some("kind"))?;
                 Ok((kind, field_decoder))
@@ -124,14 +124,15 @@ where
     }
 }
 
-pub struct ArrayFieldDecoder<V, E> {
+pub struct ArrayFieldDecoder<M, V, E> {
     values: VecDeque<V>,
-    error: PhantomData<E>,
+    marker: PhantomData<(M, E)>,
 }
 
-impl<V, E> MessageFieldDecoder<V> for ArrayFieldDecoder<V, E>
+impl<M, V, E> MessageFieldDecoder<M, V> for ArrayFieldDecoder<M, V, E>
 where
-    V: BasicValue<V>,
+    V: IntoBasicValue<ConcreteBasicValue<M, V>, M, V>,
+    V::Error: Into<MessageError<E>>,
 {
     type Error = E;
 
@@ -141,36 +142,15 @@ where
 
     fn decode_field<T>(&mut self, _name: Option<&'static str>) -> Result<T, MessageError<E>>
     where
-        T: FromBasicValue<V>,
+        T: FromBasicValuePart<M, V>,
         T::Error: Into<MessageError<Self::Error>>,
     {
         let value = self.values.pop_front().ok_or(MessageError::<E>::Eof)?;
-        let basic_value = if T::expected_types() == [BasicType::Val] {
-            BasicValue::Val(value)
+        if T::expected_types() == [BasicType::Val] {
+            T::from_basic_val(value).map_err(Into::into)
         } else {
-            value.into()
-        };
-        T::from_basic_value(basic_value).map_err(Into::into)
+            let concrete = value.into_basic().map_err(Into::into)?;
+            T::from_basic(concrete).map_err(Into::into)
+        }
     }
 }
-
-// pub struct SerdeMessageTranslation<V, E> {
-//     value: PhantomData<V>,
-//     error: PhantomData<E>,
-// }
-
-// impl<VI, VO, E> msg::MessageTranslation<VI> for SerdeMessageTranslation<VO, E>
-// where
-//     VI: Serialize,
-// {
-//     type Value = VO;
-//     type Error = MessageError<E>;
-
-//     fn translate<I, O>(message: I) -> Result<O, Self::Error>
-//     where
-//         I: Message<VI>,
-//         O: Message<Self::Value>
-//     {
-//         unimplemented!()
-//     }
-// }

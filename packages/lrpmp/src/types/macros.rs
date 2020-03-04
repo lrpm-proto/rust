@@ -1,55 +1,63 @@
 macro_rules! impl_invalid_basic_types {
-    ($($ty:ident),*) => {
+    (<$M:ty, $V:ty> $($ty:ident),*) => {
         $(
-            impl_invalid_basic_type!($ty);
+            impl_invalid_basic_type!($ty, $M, $V);
         )*
     };
 }
 
 macro_rules! impl_invalid_basic_type {
-    (U8) => {
+    (U8, $M:ty, $V:ty) => {
         #[inline]
         fn as_u8(&self) -> u8 {
-            panic_with_expected_type::<Self>(&self, BasicType::U8)
+            <Self as BasicValueExt<$M, $V>>::assert_is_type(self, BasicType::U8);
+            unreachable!()
         }
     };
-    (U64) => {
+    (U64, $M:ty, $V:ty) => {
         #[inline]
         fn as_u64(&self) -> u64 {
-            panic_with_expected_type::<Self>(&self, BasicType::U64)
+            <Self as BasicValueExt<$M, $V>>::assert_is_type(self, BasicType::U64);
+            unreachable!()
         }
     };
-    (Str) => {
+    (Str, $M:ty, $V:ty) => {
         #[inline]
         fn as_str(&self) -> &str {
-            panic_with_expected_type::<Self>(&self, BasicType::Str)
+            <Self as BasicValueExt<$M, $V>>::assert_is_type(self, BasicType::Str);
+            unreachable!()
         }
 
         #[inline]
         fn into_string(self) -> ByteString {
-            panic_with_expected_type::<Self>(&self, BasicType::Str)
+            <Self as BasicValueExt<$M, $V>>::assert_is_type(&self, BasicType::Str);
+            unreachable!()
         }
     };
-    (Map) => {
+    (Map, $M:ty, $V:ty) => {
         #[inline]
-        fn as_map(&self) -> &Self::Map {
-            panic_with_expected_type::<Self>(&self, BasicType::Map)
+        fn as_map(&self) -> &$M {
+            <Self as BasicValueExt<$M, $V>>::assert_is_type(self, BasicType::Map);
+            unreachable!()
         }
 
         #[inline]
-        fn into_map(self) -> Self::Map {
-            panic_with_expected_type::<Self>(&self, BasicType::Map)
+        fn into_map(self) -> $M {
+            <Self as BasicValueExt<$M, $V>>::assert_is_type(&self, BasicType::Map);
+            unreachable!()
         }
     };
-    (Val) => {
+    (Val, $M:ty, $V:ty) => {
         #[inline]
-        fn as_val(&self) -> &Self::Val {
-            panic_with_expected_type::<Self>(&self, BasicType::Val)
+        fn as_val(&self) -> &$V {
+            <Self as BasicValueExt<$M, $V>>::assert_is_type(self, BasicType::Val);
+            unreachable!()
         }
 
         #[inline]
-        fn into_val(self) -> Self::Val {
-            panic_with_expected_type::<Self>(&self, BasicType::Val)
+        fn into_val(self) -> $V {
+            <Self as BasicValueExt<$M, $V>>::assert_is_type(&self, BasicType::Val);
+            unreachable!()
         }
     };
 }

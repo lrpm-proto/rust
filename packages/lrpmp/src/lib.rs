@@ -1,8 +1,8 @@
 //pub mod cbor;
 //pub mod io;
 pub mod message;
+pub mod serde;
 pub mod types;
-//pub mod serde;
 
 pub(crate) mod std_impl {
     use crate::message::*;

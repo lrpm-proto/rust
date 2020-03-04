@@ -1,11 +1,11 @@
 mod encdec;
 mod error;
-mod generic;
+//mod generic;
 //mod io;
 
 pub use self::encdec::*;
 pub use self::error::*;
-pub use self::generic::*;
+//pub use self::generic::*;
 //pub use self::io::*;
 
 use crate::types::KnownKind;
@@ -29,7 +29,7 @@ pub trait Message<M, V>: Sized {
     where
         E: MessageEncoder<M, V>;
 
-    /// Decodes the message given basic values and a known kind.
+    /// Decodes the message given a decoder.
     fn decode<D>(decoder: D) -> Result<Self, MessageError<D::Error>>
     where
         D: MessageDecoder<M, V>;

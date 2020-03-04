@@ -16,39 +16,30 @@ impl<V> Body<V> {
     }
 }
 
-impl<V> BasicValue for Body<V> {
-    type Map = InvalidBasicValue;
-    type Val = Val<V>;
-
+impl<M, V> BasicValue<M, V> for Body<V> {
     fn ty(&self) -> BasicType {
         BasicType::Str
     }
 
-    fn as_val(&self) -> &Val<V> {
-        &self.inner
+    fn as_val(&self) -> &V {
+        self.inner.as_inner()
     }
 
-    fn into_val(self) -> Val<V> {
-        self.inner
+    fn into_val(self) -> V {
+        self.inner.into_inner()
     }
 
-    impl_invalid_basic_types!(U8, U64, Str, Map);
+    impl_invalid_basic_types!(<M, V> U8, U64, Str, Map);
 }
 
-impl<B, V> FromBasicValue<B> for Body<V>
-where
-    B: BasicValue,
-    Val<V>: From<B::Val>,
-{
+impl<M, V> FromBasicValuePart<M, V> for Body<V> {
     type Error = UnexpectedType;
 
     fn expected_types() -> &'static [BasicType] {
         &[BasicType::Val]
     }
 
-    fn from_basic_value(value: B) -> Result<Self, Self::Error> {
-        Ok(Self {
-            inner: value.try_into_val()?.into(),
-        })
+    fn from_basic_val(v: V) -> Result<Self, Self::Error> {
+        Ok(Body::new(v))
     }
 }

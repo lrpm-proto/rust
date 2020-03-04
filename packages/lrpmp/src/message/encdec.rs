@@ -1,5 +1,5 @@
 use super::MessageError;
-use crate::types::{BasicValue, FromBasicValue, KnownKind, Map, Val};
+use crate::types::{BasicValue, FromBasicValuePart, KnownKind};
 
 pub trait MessageEncoder<M, V> {
     type Ok;
@@ -19,9 +19,7 @@ pub trait MessageFieldEncoder<M, V> {
         value: F,
     ) -> Result<(), MessageError<Self::Error>>
     where
-        F: BasicValue,
-        F::Map: Into<Map<M, V>>,
-        F::Val: Into<Val<V>>,
+        F: BasicValue<M, V>,
     {
         self.encode_field_ref(name, &value)
     }
@@ -32,9 +30,7 @@ pub trait MessageFieldEncoder<M, V> {
         value: &F,
     ) -> Result<(), MessageError<Self::Error>>
     where
-        F: BasicValue,
-        F::Map: Into<Map<M, V>>,
-        F::Val: Into<Val<V>>;
+        F: BasicValue<M, V>;
 
     fn end(self) -> Result<Self::Ok, MessageError<Self::Error>>;
 }
@@ -50,7 +46,6 @@ pub trait MessageDecoder<M, V> {
 
 pub trait MessageFieldDecoder<M, V> {
     type Error;
-    type Value: BasicValue<Map = Map<M, V>, Val = Val<V>>;
 
     fn remaining(&self) -> Option<usize>;
 
@@ -59,7 +54,7 @@ pub trait MessageFieldDecoder<M, V> {
         name: Option<&'static str>,
     ) -> Result<T, MessageError<Self::Error>>
     where
-        T: FromBasicValue<Self::Value>,
+        T: FromBasicValuePart<M, V>,
         T::Error: Into<MessageError<Self::Error>>;
 }
 

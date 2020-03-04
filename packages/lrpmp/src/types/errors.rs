@@ -46,9 +46,22 @@ impl From<UnexpectedType> for UriFromBasicError {
     }
 }
 
-pub(crate) fn panic_with_expected_type<B>(got: &B, expected: BasicType) -> !
-where
-    B: BasicValue,
-{
-    panic!("expected {:?}, got {:?}", expected, got.ty())
+///////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum KnownKindFromBasicError {
+    UnknownKind(UnknownKind),
+    UnexpectedType(UnexpectedType),
+}
+
+impl From<UnknownKind> for KnownKindFromBasicError {
+    fn from(kind: UnknownKind) -> Self {
+        Self::UnknownKind(kind)
+    }
+}
+
+impl From<UnexpectedType> for KnownKindFromBasicError {
+    fn from(err: UnexpectedType) -> Self {
+        Self::UnexpectedType(err)
+    }
 }

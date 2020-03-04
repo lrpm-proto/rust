@@ -25,10 +25,7 @@ impl Kind {
     }
 }
 
-impl BasicValue for Kind {
-    type Val = InvalidBasicValue;
-    type Map = InvalidBasicValue;
-
+impl<M, V> BasicValue<M, V> for Kind {
     fn ty(&self) -> BasicType {
         match self {
             Kind::Known(_) => BasicType::U8,
@@ -38,49 +35,46 @@ impl BasicValue for Kind {
     }
 
     fn as_u8(&self) -> u8 {
+        <Self as BasicValueExt<M, V>>::assert_is_type(self, BasicType::U8);
         match self {
             Kind::Known(k) => k.code(),
             Kind::Unknown(UnknownKind::Code(c)) => *c,
-            _ => panic_with_expected_type::<Self>(&self, BasicType::U8),
+            _ => unreachable!(),
         }
     }
 
     fn as_str(&self) -> &str {
+        <Self as BasicValueExt<M, V>>::assert_is_type(self, BasicType::Str);
         match self {
             Kind::Unknown(UnknownKind::Name(n)) => n.as_ref(),
-            _ => panic_with_expected_type::<Self>(&self, BasicType::Str),
+            _ => unreachable!(),
         }
     }
 
     fn into_string(self) -> ByteString {
+        <Self as BasicValueExt<M, V>>::assert_is_type(&self, BasicType::Str);
         match self {
             Kind::Unknown(UnknownKind::Name(n)) => n,
-            _ => panic_with_expected_type::<Self>(&self, BasicType::Str),
+            _ => unreachable!(),
         }
     }
 
-    impl_invalid_basic_types!(U64, Map, Val);
+    impl_invalid_basic_types!(<M, V> U64, Map, Val);
 }
 
-impl<B> FromBasicValue<B> for Kind
-where
-    B: BasicValue,
-{
+impl<M, V> FromBasicValuePart<M, V> for Kind {
     type Error = UnexpectedType;
 
     fn expected_types() -> &'static [BasicType] {
         &[BasicType::U8, BasicType::Str]
     }
 
-    fn from_basic_value(value: B) -> Result<Self, Self::Error> {
-        match value.ty() {
-            BasicType::U8 => Ok(Self::from_code(value.as_u8())),
-            BasicType::Str => Ok(Self::from_name(value.into_string())),
-            other_ty => Err(UnexpectedType {
-                expected: <Self as FromBasicValue<B>>::expected_types(),
-                actual: other_ty,
-            }),
-        }
+    fn from_basic_u8(v: u8) -> Result<Self, Self::Error> {
+        Ok(Self::from_code(v))
+    }
+
+    fn from_basic_str(v: ByteString) -> Result<Self, Self::Error> {
+        Ok(Self::from_name(v))
     }
 }
 
@@ -139,14 +133,25 @@ impl From<StandardKind> for KnownKind {
     }
 }
 
-pub enum ParseKnownKindError {
-    UnknownKind(UnknownKind),
-    UnexpectedType(UnexpectedType),
-}
+impl<M, V> FromBasicValuePart<M, V> for KnownKind {
+    type Error = KnownKindFromBasicError;
 
-impl From<UnexpectedType> for ParseKnownKindError {
-    fn from(err: UnexpectedType) -> Self {
-        Self::UnexpectedType(err)
+    fn expected_types() -> &'static [BasicType] {
+        &[BasicType::U8, BasicType::Str]
+    }
+
+    fn from_basic_u8(v: u8) -> Result<Self, Self::Error> {
+        match <Kind as FromBasicValuePart<M, V>>::from_basic_u8(v)? {
+            Kind::Known(k) => Ok(k),
+            Kind::Unknown(k) => Err(k.into()),
+        }
+    }
+
+    fn from_basic_str(v: ByteString) -> Result<Self, Self::Error> {
+        match <Kind as FromBasicValuePart<M, V>>::from_basic_str(v)? {
+            Kind::Known(k) => Ok(k),
+            Kind::Unknown(k) => Err(k.into()),
+        }
     }
 }
 

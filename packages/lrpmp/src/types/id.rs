@@ -10,10 +10,7 @@ impl Id {
     }
 }
 
-impl BasicValue for Id {
-    type Map = InvalidBasicValue;
-    type Val = InvalidBasicValue;
-
+impl<M, V> BasicValue<M, V> for Id {
     fn ty(&self) -> BasicType {
         BasicType::U64
     }
@@ -22,21 +19,18 @@ impl BasicValue for Id {
         self.0
     }
 
-    impl_invalid_basic_types!(U8, Str, Map, Val);
+    impl_invalid_basic_types!(<M, V> U8, Str, Map, Val);
 }
 
-impl<B> FromBasicValue<B> for Id
-where
-    B: BasicValue,
-{
+impl<M, V> FromBasicValuePart<M, V> for Id {
     type Error = UnexpectedType;
 
     fn expected_types() -> &'static [BasicType] {
         &[BasicType::Map]
     }
 
-    fn from_basic_value(value: B) -> Result<Self, Self::Error> {
-        Ok(Self(value.try_as_u64()?))
+    fn from_basic_u64(v: u64) -> Result<Self, Self::Error> {
+        Ok(Self(v))
     }
 }
 

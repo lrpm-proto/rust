@@ -105,10 +105,7 @@ impl TryFrom<ByteString> for Uri {
     }
 }
 
-impl BasicValue for Uri {
-    type Map = InvalidBasicValue;
-    type Val = InvalidBasicValue;
-
+impl<M, V> BasicValue<M, V> for Uri {
     fn ty(&self) -> BasicType {
         BasicType::Str
     }
@@ -121,20 +118,17 @@ impl BasicValue for Uri {
         self.contents
     }
 
-    impl_invalid_basic_types!(U8, U64, Map, Val);
+    impl_invalid_basic_types!(<M, V> U8, U64, Map, Val);
 }
 
-impl<B> FromBasicValue<B> for Uri
-where
-    B: BasicValue,
-{
+impl<M, V> FromBasicValuePart<M, V> for Uri {
     type Error = UriFromBasicError;
 
     fn expected_types() -> &'static [BasicType] {
         &[BasicType::Str]
     }
 
-    fn from_basic_value(value: B) -> Result<Self, Self::Error> {
-        Ok(Self::try_from(value.try_into_string()?)?)
+    fn from_basic_str(v: ByteString) -> Result<Self, Self::Error> {
+        Ok(Self::try_from(v)?)
     }
 }
