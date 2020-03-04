@@ -1,6 +1,11 @@
 [workspace]
 members = [
-    "packages/lrpmp",
-    "packages/lrpmp-spec",
-    "packages/lrpmp-macros",
+    "lrpmp",
+    "lrpmp-spec",
+    "lrpmp-macros",
 ]
+
+[patch.crates-io]
+lrpmp = { path = "lrpmp" }
+lrpmp-spec = { path = "lrpmp-spec" }
+lrpmp-macros = { path = "lrpmp-macros" }

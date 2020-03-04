@@ -8,7 +8,7 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
-lrpmp-spec = { path = "../lrpmp-spec" }
+lrpmp-spec = { path = "../lrpmp-spec", features = ["codegen"] }
 syn = "~1"
 quote = "~1"
 proc-macro2 = "~1"

@@ -12,6 +12,28 @@ pub struct UriParts {
     pub wildcard_count: u8,
 }
 
+#[cfg(feature = "codegen")]
+mod uri_macro {
+    use super::UriParts;
+    use proc_macro2::TokenStream;
+    use quote::{quote, ToTokens};
+
+    impl ToTokens for UriParts {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let Self {
+                wildcard_count,
+                segment_count,
+            } = self;
+            tokens.extend(quote!(
+                ::lrpmp_spec::uri::UriParts {
+                    wildcard_count: #wildcard_count,
+                    segment_count: #segment_count,
+                },
+            ))
+        }
+    }
+}
+
 impl UriAnalysis {
     #[inline]
     pub fn for_uri_bytes(uri: &[u8]) -> Self {
