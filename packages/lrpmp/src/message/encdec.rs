@@ -1,7 +1,8 @@
 use std::collections::VecDeque;
+use std::marker::PhantomData;
 
 use super::MessageError;
-use crate::types::{BasicValue, ConcreteBasicValue, FromBasicValue, FromBasicValuePart, KnownKind};
+use crate::types::{BasicValue, FromBasicValue, FromBasicValuePart, KnownKind};
 
 pub trait MessageEncoder<M, V> {
     type Ok;
@@ -76,7 +77,7 @@ impl<D> KindDecoder<D> {
     }
 }
 
-impl<'dec, M, V, D> MessageDecoder<M, V> for KindDecoder<D>
+impl<M, V, D> MessageDecoder<M, V> for KindDecoder<D>
 where
     D: MessageFieldDecoder<M, V>,
 {
@@ -88,17 +89,32 @@ where
     }
 }
 
-pub(crate) struct ArrayFieldDecoder<M, V> {
-    fields: VecDeque<ConcreteBasicValue<M, V>>,
+///////////////////////////////////////////////////////////////////////////////
+
+pub struct ArrayFieldDecoder<B, M, V>
+where
+    B: BasicValue<M, V>,
+{
+    fields: VecDeque<B>,
+    marker: PhantomData<(M, V)>,
 }
 
-impl<M, V> ArrayFieldDecoder<M, V> {
-    pub fn new(fields: VecDeque<ConcreteBasicValue<M, V>>) -> Self {
-        Self { fields }
+impl<B, M, V> ArrayFieldDecoder<B, M, V>
+where
+    B: BasicValue<M, V>,
+{
+    pub fn new(fields: VecDeque<B>) -> Self {
+        Self {
+            fields,
+            marker: PhantomData,
+        }
     }
 }
 
-impl<M, V> MessageFieldDecoder<M, V> for ArrayFieldDecoder<M, V> {
+impl<B, M, V> MessageFieldDecoder<M, V> for ArrayFieldDecoder<B, M, V>
+where
+    B: BasicValue<M, V>,
+{
     type Error = ();
 
     fn remaining(&self) -> Option<usize> {
