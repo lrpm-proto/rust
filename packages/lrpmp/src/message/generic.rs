@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{ConcreteBasicValue, KnownKind};
+use crate::types::{BasicValue, BasicValueExt, ConcreteBasicValue, KnownKind};
 
 #[derive(Debug, Clone)]
 pub struct GenericMessage<M, V> {
@@ -8,7 +8,14 @@ pub struct GenericMessage<M, V> {
 }
 
 impl<M, V> GenericMessage<M, V> {
-    pub fn new(kind: KnownKind, fields: Vec<ConcreteBasicValue<M, V>>) -> Self {
+    pub fn new<B>(kind: KnownKind, fields: Vec<B>) -> Self
+    where
+        B: BasicValue<M, V>,
+    {
+        let fields = fields
+            .into_iter()
+            .map(BasicValueExt::into_concrete)
+            .collect();
         Self { kind, fields }
     }
 }
@@ -50,10 +57,13 @@ impl<M, V> Message<M, V> for GenericMessage<M, V> {
         while Some(0) != decoder.remaining() {
             fields.push(decoder.decode_field(None)?);
         }
-        Ok(Self::new(kind, fields))
+        Ok(Self {
+            kind,
+            fields,
+        })
     }
 
-    // fn into_standard(self) -> Result<StandardMessage<V>, MessageError<()>> {
-    //     unimplemented!()
-    // }
+    fn into_standard(self) -> Result<StandardMessage<M, V>, MessageError<()>> {
+        unimplemented!()
+    }
 }

@@ -141,9 +141,9 @@ fn gen_std_kind_and_message(spec: &Spec) -> TokenStream {
                 Ok(message)
             }
 
-            // fn into_standard(self) -> Option<Self> {
-            //     Some(self)
-            // }
+            fn into_standard(self) -> Result<Self, MessageError<()>> {
+                Ok(self)
+            }
         }
     )
 }
@@ -224,9 +224,9 @@ fn gen_message(def: &MsgDef) -> TokenStream {
                 })
             }
 
-            // fn into_standard(self) -> Option<StandardMessage<M, V>> {
-            //     Some(StandardMessage::#kind_idents(self))
-            // }
+            fn into_standard(self) -> Result<StandardMessage<M, V>, MessageError<()>> {
+                Ok(StandardMessage::#kind_ident(self))
+            }
         }
     )
 }

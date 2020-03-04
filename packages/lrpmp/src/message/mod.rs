@@ -1,11 +1,11 @@
 mod encdec;
 mod error;
-//mod generic;
+mod generic;
 //mod io;
 
 pub use self::encdec::*;
 pub use self::error::*;
-//pub use self::generic::*;
+pub use self::generic::*;
 //pub use self::io::*;
 
 use crate::types::KnownKind;
@@ -34,6 +34,6 @@ pub trait Message<M, V>: Sized {
     where
         D: MessageDecoder<M, V>;
 
-    // /// Convert the message into a standard message if applicable.
-    // fn into_standard(self) -> Result<StandardMessage<V>, MessageError<()>>;
+    /// Convert the message into a standard message if applicable.
+    fn into_standard(self) -> Result<StandardMessage<M, V>, MessageError<()>>;
 }

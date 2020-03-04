@@ -113,10 +113,10 @@ pub trait BasicValueExt<M, V>: BasicValue<M, V> + Sized {
         }
     }
 
-    // #[inline]
-    // fn into_concrete(self) -> ConcreteBasicValue<Self::Map, Self::Val> {
-    //     ConcreteBasicValue::from_basic_value(self).unwrap()
-    // }
+    #[inline]
+    fn into_concrete(self) -> ConcreteBasicValue<M, V> {
+        ConcreteBasicValue::from_basic(self).unwrap()
+    }
 
     // #[inline]
     // fn map_into<T>(self) -> Result<T, T::Error>
