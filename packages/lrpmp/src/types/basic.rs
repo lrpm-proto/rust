@@ -191,7 +191,6 @@ pub trait FromBasicValuePart<M, V>: Sized {
     fn expected_types() -> &'static [BasicType];
 
     fn from_basic_u8(v: u8) -> Result<Self, Self::Error> {
-        let _ = v;
         if Self::expected_types().contains(&BasicType::U64) {
             Self::from_basic_u64(v as u64)
         } else {

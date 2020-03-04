@@ -9,9 +9,7 @@ use serde_cbor::Error as InnerError;
 use crate::io::{Read, Write};
 use crate::message::{self as msg, Message, MessageError};
 use crate::serde::{ArrayDecoder, ArrayEncoder, ArrayFieldDecoder, ArrayFieldEncoder};
-use crate::types::{
-    BasicValue, ConcreteBasicValue, FromBasicValuePart, IntoBasicValue, KnownKind,
-};
+use crate::types::{BasicValue, ConcreteBasicValue, FromBasicValuePart, IntoBasicValue, KnownKind};
 
 pub use serde_cbor::Value;
 

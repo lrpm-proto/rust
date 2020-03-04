@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 use std::fmt;
 
-use bytestring::ByteString;
 use bytes::Bytes;
+use bytestring::ByteString;
 
 use super::*;
 
