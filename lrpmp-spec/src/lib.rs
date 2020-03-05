@@ -109,6 +109,13 @@ impl Default for Spec {
     }
 }
 
+#[cfg(not(feature = "default-spec"))]
+impl Default for Spec {
+    fn default() -> Self {
+        panic!("no default spec")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::naming::RUST_NAMING_CONVENTION;
