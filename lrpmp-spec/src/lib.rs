@@ -1,4 +1,5 @@
 mod message;
+mod validation;
 
 pub mod naming;
 pub mod uri;
@@ -28,6 +29,7 @@ pub mod errors {
     }
 }
 
+#[cfg(feature = "default-spec")]
 const SPEC_STR: &str = include_str!("../spec/src/definitions.toml");
 
 #[derive(Debug, Clone, Deserialize)]
@@ -67,8 +69,7 @@ impl Spec {
     }
 
     pub fn validate(self) -> Result<Self, Error> {
-        // TODO
-        Ok(self)
+        self::validation::run(self)
     }
 
     /// Recursively renames names and types given a naming convention.
@@ -101,9 +102,10 @@ impl FromStr for Spec {
     }
 }
 
+#[cfg(feature = "default-spec")]
 impl Default for Spec {
     fn default() -> Self {
-        SPEC_STR.parse().expect("invalid spec string")
+        SPEC_STR.parse().expect("valid toml spec")
     }
 }
 

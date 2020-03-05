@@ -6,8 +6,9 @@ edition = "2018"
 include = ["spec/src/definitions.toml"]
 
 [features]
-default = []
+default = ["default-spec"]
 codegen = ["quote", "proc-macro2"]
+default-spec = []
 
 [dependencies]
 toml = "0.5"
