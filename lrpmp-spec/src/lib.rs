@@ -12,7 +12,7 @@ use std::sync::Arc;
 use semver::Version;
 use serde::Deserialize;
 
-use crate::naming::{default_naming, NamingConvention};
+use self::naming::{default_naming, NamingConvention};
 
 pub use self::message::*;
 pub use self::uri::UriDef;
@@ -26,11 +26,14 @@ pub mod errors {
             Io(::std::io::Error);
             Toml(::toml::de::Error);
         }
+        errors {
+            NoDefaultSpec
+        }
     }
 }
 
 #[cfg(feature = "default-spec")]
-const SPEC_STR: &str = include_str!("../spec/src/definitions.toml");
+const DEFAULT_SPEC_STR: &str = include_str!("../spec/src/definitions.toml");
 
 #[derive(Debug, Clone, Deserialize)]
 struct SpecInner {
@@ -48,6 +51,16 @@ pub struct Spec {
 }
 
 impl Spec {
+    #[cfg(feature = "default-spec")]
+    pub fn current() -> Result<Self, Error> {
+        DEFAULT_SPEC_STR.parse()
+    }
+
+    #[cfg(not(feature = "default-spec"))]
+    pub fn current() -> Result<Self, Error> {
+        Err(self::errors::ErrorKind::NoDefaultSpec.into())
+    }
+
     pub fn load<P>(path: P) -> Result<Self, Error>
     where
         P: AsRef<Path>,
@@ -102,33 +115,20 @@ impl FromStr for Spec {
     }
 }
 
-#[cfg(feature = "default-spec")]
-impl Default for Spec {
-    fn default() -> Self {
-        SPEC_STR.parse().expect("valid toml spec")
-    }
-}
-
-#[cfg(not(feature = "default-spec"))]
-impl Default for Spec {
-    fn default() -> Self {
-        panic!("no default spec")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::naming::RUST_NAMING_CONVENTION;
     use super::*;
 
     #[test]
-    fn test_default_spec_valid() {
-        Spec::default().validate().unwrap();
+    fn test_current_spec_valid() {
+        Spec::current().unwrap().validate().unwrap();
     }
 
     #[test]
-    fn test_default_spec_rust_valid() {
-        Spec::default()
+    fn test_current_spec_rust_valid() {
+        Spec::current()
+            .unwrap()
             .rename(RUST_NAMING_CONVENTION)
             .validate()
             .unwrap();

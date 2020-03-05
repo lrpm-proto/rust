@@ -31,7 +31,7 @@ fn load_spec(spec_path: &Option<PathBuf>) -> Result<Spec, Error> {
         Some(spec_path) => Spec::load(spec_path)?
             .rename(RUST_NAMING_CONVENTION)
             .validate(),
-        None => Ok(Spec::default().rename(RUST_NAMING_CONVENTION)),
+        None => Ok(Spec::current()?.rename(RUST_NAMING_CONVENTION)),
     }
 }
 
