@@ -1,6 +1,6 @@
 use super::*;
 
-pub use crate::std_impl::StandardKind;
+pub use crate::std_kind::*;
 
 /// Represents a message kind (eg, `CALL`, `20`).
 #[derive(Debug, Clone, PartialEq)]

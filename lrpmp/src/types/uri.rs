@@ -4,7 +4,7 @@ use std::fmt;
 use bytes::Bytes;
 use bytestring::ByteString;
 
-use lrpmp_spec::uri::{UriAnalysis, UriParts};
+use lrpmp_spec::uri::{self, UriParts};
 
 use super::*;
 
@@ -37,13 +37,23 @@ impl Uri {
         Self::try_from(Bytes::from_static(s.as_bytes()))
     }
 
-    pub const unsafe fn from_parts_unchecked(contents: Bytes, parts: UriParts) -> Self {
+    /// Construct a `Uri` given an unchecked `&'static str` and `UriParts`.
+    /// 
+    /// # Safety
+    /// URI parts must be validated beforehand with `lrpmp_spec::uri::validate_bytes`.
+    pub const unsafe fn from_static_parts_unchecked(uri: &'static str, parts: UriParts) -> Self {
+        Self::from_parts_unchecked(Bytes::from_static(uri.as_bytes()), parts)
+    }
+
+    const unsafe fn from_parts_unchecked(contents: Bytes, parts: UriParts) -> Self {
         let contents = ByteString::from_bytes_unchecked(contents);
         Uri { contents, parts }
     }
+}
 
-    pub const unsafe fn from_static_parts_unchecked(uri: &'static str, parts: UriParts) -> Self {
-        Self::from_parts_unchecked(Bytes::from_static(uri.as_bytes()), parts)
+impl PartialEq for Uri {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str().eq(other.as_str())
     }
 }
 
@@ -57,9 +67,12 @@ impl TryFrom<Bytes> for Uri {
     type Error = ParseUriError;
 
     fn try_from(contents: Bytes) -> Result<Self, Self::Error> {
-        match UriAnalysis::for_uri_bytes(contents.as_ref()) {
-            UriAnalysis::Valid(parts) => unsafe { Ok(Uri::from_parts_unchecked(contents, parts)) },
-            UriAnalysis::Invalid { invalid, offset, .. } => Err(ParseUriError { invalid, offset }),
+        match uri::validate_bytes(contents.as_ref()) {
+            Ok(parts) => unsafe { Ok(Uri::from_parts_unchecked(contents, parts)) },
+            Err(err) => Err(ParseUriError {
+                invalid: err.invalid,
+                offset: err.offset,
+            }),
         }
     }
 }

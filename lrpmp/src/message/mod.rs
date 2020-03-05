@@ -12,11 +12,11 @@ pub use self::error::*;
 pub use self::generic::GenericMessage;
 pub use self::io::*;
 
+pub use crate::std_msgs::*;
+
 use self::transmute::*;
 
 use crate::types::KnownKind;
-
-pub use crate::std_impl::*;
 
 pub trait Message<M, V>: Sized {
     /// Returns the message kind.

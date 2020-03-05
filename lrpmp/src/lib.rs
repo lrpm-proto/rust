@@ -1,6 +1,6 @@
 use proc_macro_hack::proc_macro_hack;
 
-//pub mod bus;
+pub mod bus;
 pub mod codec;
 pub mod io;
 pub mod message;
@@ -14,12 +14,22 @@ pub mod types;
 /// use lrpmp::uri;
 /// use lrpmp::types::Uri;
 ///
-/// const MY_URI: Uri = uri!("hello.world");
+/// static MY_URI: Uri = uri!("hello.world");
 /// ```
 #[proc_macro_hack]
 pub use ::lrpmp_macros::uri;
 
-pub(crate) mod std_impl {
+pub mod uris {
+    use crate::types::Uri;
+
+    ::lrpmp_macros::impl_std_uris!();
+}
+
+pub(crate) mod std_kind {
+    ::lrpmp_macros::impl_std_kind!();
+}
+
+pub(crate) mod std_msgs {
     use crate::message::dec::*;
     use crate::message::enc::*;
     use crate::message::*;

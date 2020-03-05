@@ -1,93 +1,71 @@
-use std::path::PathBuf;
-use std::{env, fs};
-
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::Ident;
+use syn::{Error, Ident, LitStr};
 
-use lrpmp_spec::naming::RUST_NAMING_CONVENTION;
+use lrpmp_spec::uri;
 use lrpmp_spec::{MsgDef, Spec};
 
-pub fn impl_std_messages(spec_path_opt: Option<String>) -> TokenStream {
-    let spec = get_spec(spec_path_opt);
-    let mut out = TokenStream::new();
+use crate::spec::get_spec;
 
-    for msg in spec.message_iter() {
-        out.extend(gen_message(msg));
+fn with_spec<F>(spec_path_opt: Option<String>, f: F) -> TokenStream
+where
+    F: FnOnce(Spec) -> TokenStream,
+{
+    match get_spec(spec_path_opt) {
+        Ok(spec) => f(spec),
+        Err(spec_err) => Error::new(Span::call_site(), spec_err).to_compile_error(),
     }
-
-    out.extend(gen_std_kind_and_message(&spec));
-    out
 }
 
-fn get_spec(spec_path_opt: Option<String>) -> Spec {
-    let spec = if let Some(spec_path) = spec_path_opt {
-        let spec_path = env::var("CARGO_MANIFEST_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::new())
-            .join(spec_path)
-            .canonicalize()
-            .expect("failed to resolve spec path");
+pub fn impl_std_kind(spec_path_opt: Option<String>) -> TokenStream {
+    with_spec(spec_path_opt, gen_std_kind)
+}
 
-        match fs::read_to_string(&spec_path) {
-            Ok(s) => s.parse().expect("failed to parse spec"),
-            Err(e) => panic!("failed to load spec {:?} ({:?})", spec_path, e),
+pub fn impl_std_messages(spec_path_opt: Option<String>) -> TokenStream {
+    with_spec(spec_path_opt, |spec| {
+        let mut out = TokenStream::new();
+
+        for msg in spec.message_iter() {
+            out.extend(gen_message(msg));
         }
-    } else {
-        Spec::default()
-    };
-    let spec = spec.rename(RUST_NAMING_CONVENTION);
-    spec.validate().expect("lrpmp spec invalid");
-    spec
+
+        out.extend(gen_std_message(spec));
+        out
+    })
 }
 
-#[allow(clippy::cognitive_complexity)]
-fn gen_std_kind_and_message(spec: &Spec) -> TokenStream {
-    let kind_field_counts: Vec<_> = spec.message_iter().map(|m| m.field_iter().len()).collect();
-    let kind_names: Vec<_> = spec.message_iter().map(|m| m.kind_name()).collect();
+pub fn impl_std_uris(spec_path_opt: Option<String>) -> TokenStream {
+    with_spec(spec_path_opt, |spec| {
+        let mut out = TokenStream::new();
+
+        for uri_def in spec.uri_iter() {
+            let name = ident(format!("{}_URI", uri_def.name()));
+            let uri_str_lit = LitStr::new(uri_def.uri(), Span::call_site());
+            let uri_expr = impl_uri(uri_str_lit);
+
+            out.extend(quote!(
+                pub static #name: Uri = #uri_expr;
+            ));
+        }
+
+        out
+    })
+}
+
+pub fn impl_uri(uri_lit_str: LitStr) -> TokenStream {
+    let uri_str = uri_lit_str.value();
+    match uri::validate_bytes(uri_str.as_bytes()) {
+        Ok(uri_parts) => quote!(unsafe { Uri::from_static_parts_unchecked(#uri_str, #uri_parts) }),
+        Err(err) => Error::new_spanned(uri_lit_str, err.message_with_uri(uri_str.as_ref()))
+            .to_compile_error(),
+    }
+}
+
+fn gen_std_message(spec: Spec) -> TokenStream {
     let kind_idents: Vec<_> = spec.message_iter().map(msg_kind_ident).collect();
-    let kind_codes: Vec<_> = spec.message_iter().map(|m| m.kind_code()).collect();
     let message_idents: Vec<_> = spec.message_iter().map(msg_struct_ident).collect();
 
     quote!(
-        /// Standard defined message kinds.
-        #[derive(Debug, Clone, Copy, PartialEq)]
-        #[repr(u8)]
-        pub enum StandardKind {
-            #(
-                #kind_idents = #kind_codes
-            ),*
-        }
-
-        impl StandardKind {
-            pub fn from_name(name: &str) -> Option<Self> {
-                match name {
-                    #(#kind_names => Some(Self::#kind_idents)),*,
-                    _ => None,
-                }
-            }
-
-            pub fn from_code(code: u8) -> Option<Self> {
-                match code {
-                    #(#kind_codes => Some(Self::#kind_idents)),*,
-                    _ => None,
-                }
-            }
-
-            pub fn name(self) -> &'static str {
-                match self {
-                    #(Self::#kind_idents => #kind_names),*
-                }
-            }
-
-            /// Returns the lower and upper bound of the number of fields in the message kind.
-            pub fn field_count(&self) -> (usize, Option<usize>) {
-                match self {
-                    #(Self::#kind_idents => (#kind_field_counts, Some(#kind_field_counts))),*
-                }
-            }
-        }
-
         /// Enum of all standard messages.
         #[derive(Debug, Clone)]
         pub enum StandardMessage<M, V> {
@@ -143,6 +121,53 @@ fn gen_std_kind_and_message(spec: &Spec) -> TokenStream {
 
             fn into_standard(self) -> Result<Self, MessageError<()>> {
                 Ok(self)
+            }
+        }
+    )
+}
+
+fn gen_std_kind(spec: Spec) -> TokenStream {
+    let kind_field_counts: Vec<_> = spec.message_iter().map(|m| m.field_iter().len()).collect();
+    let kind_names: Vec<_> = spec.message_iter().map(|m| m.kind_name()).collect();
+    let kind_idents: Vec<_> = spec.message_iter().map(msg_kind_ident).collect();
+    let kind_codes: Vec<_> = spec.message_iter().map(|m| m.kind_code()).collect();
+
+    quote!(
+        /// Standard defined message kinds.
+        #[derive(Debug, Clone, Copy, PartialEq)]
+        #[repr(u8)]
+        pub enum StandardKind {
+            #(
+                #kind_idents = #kind_codes
+            ),*
+        }
+
+        impl StandardKind {
+            pub fn from_name(name: &str) -> Option<Self> {
+                match name {
+                    #(#kind_names => Some(Self::#kind_idents)),*,
+                    _ => None,
+                }
+            }
+
+            pub fn from_code(code: u8) -> Option<Self> {
+                match code {
+                    #(#kind_codes => Some(Self::#kind_idents)),*,
+                    _ => None,
+                }
+            }
+
+            pub fn name(self) -> &'static str {
+                match self {
+                    #(Self::#kind_idents => #kind_names),*
+                }
+            }
+
+            /// Returns the lower and upper bound of the number of fields in the message kind.
+            pub fn field_count(&self) -> (usize, Option<usize>) {
+                match self {
+                    #(Self::#kind_idents => (#kind_field_counts, Some(#kind_field_counts))),*
+                }
             }
         }
     )
@@ -231,10 +256,6 @@ fn gen_message(def: &MsgDef) -> TokenStream {
     )
 }
 
-fn ident<S: AsRef<str>>(ident: S) -> Ident {
-    Ident::new(ident.as_ref(), Span::call_site())
-}
-
 fn msg_kind_ident(def: &MsgDef) -> Ident {
     ident(def.name())
 }
@@ -259,4 +280,11 @@ fn map_msg_ty<S: AsRef<str>>(ty: S) -> TokenStream {
         "Body" => quote!(Body<V>),
         _ => panic!("unknown type: {}", ty),
     }
+}
+
+pub fn ident<S>(ident: S) -> Ident
+where
+    S: AsRef<str>,
+{
+    Ident::new(ident.as_ref(), Span::call_site())
 }

@@ -8,6 +8,7 @@ pub use inflector::cases::{
 
 pub struct NamingConvention {
     pub name: &'static str,
+    pub uri_name: fn(&str) -> String,
     pub msg_name: fn(&str) -> String,
     pub msg_type: fn(&str) -> String,
     pub msg_field_name: fn(&str) -> String,
@@ -36,6 +37,7 @@ pub(crate) fn unreachable_str_string(_: &str) -> String {
 
 pub(crate) const DEFAULT_NAMING_CONVENTION: &NamingConvention = &NamingConvention {
     name: "default",
+    uri_name: unreachable_str_string,
     msg_name: unreachable_str_string,
     msg_type: unreachable_str_string,
     msg_field_name: unreachable_str_string,
@@ -44,6 +46,7 @@ pub(crate) const DEFAULT_NAMING_CONVENTION: &NamingConvention = &NamingConventio
 
 pub const RUST_NAMING_CONVENTION: &NamingConvention = &NamingConvention {
     name: "rust",
+    uri_name: to_screaming_snake_case,
     msg_name: to_pascal_case,
     msg_type: to_pascal_case,
     msg_field_name: to_snake_case,

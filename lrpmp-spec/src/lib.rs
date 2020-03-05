@@ -3,15 +3,19 @@ mod message;
 pub mod naming;
 pub mod uri;
 
+use std::fs;
+use std::path::Path;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use semver::Version;
 use serde::Deserialize;
 
-use crate::errors::Error;
 use crate::naming::{default_naming, NamingConvention};
 
 pub use self::message::*;
+pub use self::uri::UriDef;
+pub use crate::errors::Error;
 
 pub mod errors {
     use error_chain::error_chain;
@@ -27,37 +31,65 @@ pub mod errors {
 const SPEC_STR: &str = include_str!("../spec/src/definitions.toml");
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct Spec {
+struct SpecInner {
     version: Version,
     messages: Vec<MsgDef>,
+    uri_definitions: Vec<UriDef>,
     #[serde(default = "default_naming", skip)]
     naming: &'static NamingConvention,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(from = "SpecInner")]
+pub struct Spec {
+    inner: Arc<SpecInner>,
+}
+
 impl Spec {
+    pub fn load<P>(path: P) -> Result<Self, Error>
+    where
+        P: AsRef<Path>,
+    {
+        let path = path.as_ref().canonicalize()?;
+        fs::read_to_string(path)?.parse()
+    }
+
     pub fn version(&self) -> &Version {
-        &self.version
+        &self.inner.version
+    }
+
+    pub fn uri_iter(&self) -> impl ExactSizeIterator<Item = &UriDef> {
+        self.inner.uri_definitions.iter()
     }
 
     pub fn message_iter(&self) -> impl ExactSizeIterator<Item = &MsgDef> {
-        self.messages.iter()
+        self.inner.messages.iter()
     }
 
-    pub fn validate(&self) -> Result<(), Error> {
+    pub fn validate(self) -> Result<Self, Error> {
         // TODO
-        Ok(())
+        Ok(self)
     }
 
     /// Recursively renames names and types given a naming convention.
-    pub fn rename(mut self, naming: &'static NamingConvention) -> Self {
-        if self.naming == naming {
+    pub fn rename(self, naming: &'static NamingConvention) -> Self {
+        if self.inner.naming == naming {
             return self;
         }
-        for msg in self.messages.iter_mut() {
+        let mut spec_inner = (*self.inner).clone();
+        for msg in spec_inner.messages.iter_mut() {
             msg.rename(naming);
         }
-        self.naming = naming;
-        self
+        spec_inner.naming = naming;
+        spec_inner.into()
+    }
+}
+
+impl From<SpecInner> for Spec {
+    fn from(inner: SpecInner) -> Self {
+        Self {
+            inner: Arc::new(inner),
+        }
     }
 }
 
