@@ -38,7 +38,7 @@ impl Uri {
     }
 
     /// Construct a `Uri` given an unchecked `&'static str` and `UriParts`.
-    /// 
+    ///
     /// # Safety
     /// URI parts must be validated beforehand with `lrpmp_spec::uri::validate_bytes`.
     pub const unsafe fn from_static_parts_unchecked(uri: &'static str, parts: UriParts) -> Self {

@@ -1,6 +1,6 @@
+mod client;
 mod hub;
 mod message;
-mod client;
 mod transport;
 
 // pub use self::hub::Hub;

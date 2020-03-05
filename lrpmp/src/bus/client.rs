@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use super::{Meta, Uri, Error};
+use super::{Error, Meta, Uri};
 
 pub trait RpcClient<V> {
     type Future: Future<Output = Result<(V, Meta<V>), Error<V>>>;

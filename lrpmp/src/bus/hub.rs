@@ -1,10 +1,10 @@
-use std::sync::Arc;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use super::transport::Transport;
 
 struct HubInner<T, V> {
-    value: PhantomData::<V>,
+    value: PhantomData<V>,
     transport: T,
 }
 

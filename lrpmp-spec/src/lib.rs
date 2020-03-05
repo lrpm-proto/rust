@@ -109,10 +109,19 @@ impl Default for Spec {
 
 #[cfg(test)]
 mod tests {
+    use super::naming::RUST_NAMING_CONVENTION;
     use super::*;
 
     #[test]
     fn test_default_spec_valid() {
-        Spec::default().validate().expect("invalid default spec");
+        Spec::default().validate().unwrap();
+    }
+
+    #[test]
+    fn test_default_spec_rust_valid() {
+        Spec::default()
+            .rename(RUST_NAMING_CONVENTION)
+            .validate()
+            .unwrap();
     }
 }
